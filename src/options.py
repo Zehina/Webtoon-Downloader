@@ -28,6 +28,9 @@ class Options():
                             help='end chapter', required= False, default=None)
         self.parser.add_argument('-d', '--dest', type=str,
                             help='download parent folder path', required= False)
+        self.parser.add_argument('--images-format', required=False,
+                            help='image format of downloaded images, available: (png, jpg)', 
+                            choices=['jpg', 'png'], default='jpg')
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
                             'more help details'), required=False, action='store_true')
         self.parser._positionals.title = "commands"

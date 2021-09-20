@@ -4,6 +4,7 @@ import requests
 import rich
 import os
 import pathlib
+from PIL import Image
 import shutil
 import signal
 import sys
@@ -131,7 +132,7 @@ def get_img_urls(session: requests.session, viewer_url: str, chapter_number: int
         for url 
         in soup.find('div', class_='viewer_img _img_viewer_area').find_all('img')]
 
-def download_image(url: str, dest: str, chapter_number: Union[str, int], page_number: Union[str, int]):
+def download_image(url: str, dest: str, chapter_number: Union[str, int], page_number: Union[str, int], image_format:str='jpg'):
     '''
     downloads an image using a direct url into the base path folder.
 
@@ -148,17 +149,25 @@ def download_image(url: str, dest: str, chapter_number: Union[str, int], page_nu
 
     page_number: str | int
         page number used for naming the saved image file.
+
+    image_format: str
+        format of downloaded image .
+        (default: jpg)
     '''
 
     r = requests.get(url, headers=image_headers, stream=True)
     if r.status_code == 200:
-        with open(os.path.join(dest, f'{chapter_number}_{page_number}.jpg'), 'wb') as f:
-            r.raw.decode_content = True
-            shutil.copyfileobj(r.raw, f)
+        r.raw.decode_content = True
+        file_name = f'{chapter_number}_{page_number}'
+        if(image_format == 'png'):
+            im = Image.open(r.raw).save(os.path.join(dest, f'{file_name}.png'))
+        else:
+            with open(os.path.join(dest, f'{file_name}.jpg'), 'wb') as f:
+                shutil.copyfileobj(r.raw, f)
     else:
         log.error(f'[bold red blink]Unable to download page[/] [medium_spring_green]{page_number}[/]' 
-                      f'from chapter [medium_spring_green]{chapter_number}[/], request returned' 
-                      f'error [bold red blink]{r.status_code}[/]')
+                  f'from chapter [medium_spring_green]{chapter_number}[/], request returned' 
+                  f'error [bold red blink]{r.status_code}[/]')
 
 def exit_handler(sig, frame):
     '''
@@ -180,9 +189,9 @@ def main():
             console.print(markdown)
             return
     series_url = args.url
-    download_webtoon(series_url, args.start, args.end, args.dest)
+    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format)
 
-def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str):
+def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg'):
     '''
     downloads all chapter pages starting from start_chapter until end_chapter, inclusive.
     stores the downloaded images into the dest path.
@@ -195,7 +204,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
         https://www.webtoons.com/en/{?}/{?}/list?title_no={?}
     
     start_chapter: int
-        starting range of chapters to download..
+        starting range of chapters to download.
         (default: 1)
     
     end_chapter: int
@@ -249,7 +258,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
                     chapter_number=chapter_number)
             chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_number}.", total=len(img_urls))
             for page_number, url in enumerate(img_urls):
-                download_image(url, dest, chapter_number, page_number)
+                download_image(url, dest, chapter_number, page_number, image_format=images_format)
                 progress.update(chapter_download_task, advance=1)
             progress.remove_task(chapter_download_task)
             progress.update(series_download_task, advance=1)

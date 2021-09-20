@@ -85,6 +85,10 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
     ```ps
     py webtoon_downloader.py --url "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --start 35 --end 67
     ```
+* You can change the format of the downloaded pictures with the ```--images-format``` argument
+    ```ps
+    py webtoon_downloader.py --url "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --images-format 'png'
+    ```
 * By default, the downloaded chapters will be storedr under the current working directory with the folder name [series_title]. 
 For example, if you download Tower of God, Chapter 150.
     ```ps  
@@ -106,12 +110,14 @@ Usage: options.py [-h|--help] [-u|--url] [-s|--start] [-e|--end] [-d|--dest]
                   [--readme|-r]
 
 Options:
--h, --help    show this help message and exit
--u, --url     webtoon url of the title to download
--s, --start   start chapter (default: 1)
--e, --end     end chapter (default: None)
--d, --dest    download parent folder path
---readme, -r  displays readme file content for more help details
+-h, --help       show this help message and exit
+-u, --url        webtoon url of the title to download
+-s, --start      start chapter (default: 1)
+-e, --end        end chapter (default: None)
+-d, --dest       download parent folder path
+--images-format  image format of downloaded images, available: (png, jpg)
+                 (default: 'jpg')
+--readme, -r     displays readme file content for more help details
 ```
 <!-- CONTRIBUTING -->
 ## Contributing
