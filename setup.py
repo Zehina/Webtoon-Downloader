@@ -8,19 +8,19 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='Webtoon_Downloader',
-    version='0.2.1',
+    version='0.3.0',
     description='Webtoons Scraper for downloading chapters of any series wanted.',
     author='Ali Taibi',
     author_email='zehinadev@gmail.com',
     url='https://github.com/Zehina/Webtoon-Downloader',
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
-        'License: OSI Approved :: MIT License' 
+        'License: OSI Approved :: MIT License'
     ],
     long_description=long_description,
     license='MIT',
-    keyword='webtoon, downloader, scraper',
+    keywords='webtoon, downloader, scraper',
     packages=find_packages(where='src'), 
     package_dir={'': 'src'},
     python_requires='>=3.7, <4',

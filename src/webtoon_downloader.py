@@ -3,18 +3,49 @@ import requests
 import rich
 import os
 import pathlib
-from PIL import Image
 import shutil
 import signal
 import sys
 import time
+from PIL import Image
 from bs4 import BeautifulSoup
+from threading import Event
 from typing import Union
+import concurrent
+from concurrent.futures import as_completed, ThreadPoolExecutor
+import queue
 from rich.console import Console
 from rich.logging import RichHandler
-from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 from rich.markdown import Markdown
+from rich.progress import (
+    BarColumn,
+    DownloadColumn,
+    TransferSpeedColumn,
+    Progress, 
+    TaskID,
+    TextColumn, 
+    TimeRemainingColumn,
+    ProgressColumn
+)
+from rich.text import Text
 from options import Options
+from rich.style import Style
+import itertools
+pages_progress_style = Style(color="red", blink=True, bold=True)
+
+class ThreadPoolExecutorWithQueueSizeLimit(ThreadPoolExecutor):
+    def __init__(self, maxsize=50, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._work_queue = queue.Queue(maxsize=maxsize)
+
+class ChapterDownloadProgress(Progress):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+    
+    def add_task(self, *args, **kwargs):
+        super().add_task(*args, **kwargs)
+        self.download_type = download_type
+
 
 ######################## Log Configuration ################################
 console = Console()
@@ -45,6 +76,20 @@ image_headers = {
     **headers
 }
 ###########################################################################
+
+progress = Progress(    
+    TextColumn("{task.description}", justify="right"),
+    BarColumn(bar_width=None),
+    "[progress.percentage]{task.percentage:>3.2f}%",
+    "•",
+    TextColumn("[#DAF7A6]{task.completed:>02d}/{task.total}[/#DAF7A6]", justify="left"),
+    TextColumn("{task.fields[type]}", justify="left"),
+    "*",
+    TimeRemainingColumn(),
+    transient=True
+)
+done_event = Event()
+
 
 def get_series_title(html: Union[str, BeautifulSoup]) -> str:
     '''
@@ -131,7 +176,7 @@ def get_img_urls(session: requests.session, viewer_url: str, chapter_number: int
         for url 
         in soup.find('div', class_='viewer_img _img_viewer_area').find_all('img')]
 
-def download_image(url: str, dest: str, chapter_number: Union[str, int], page_number: Union[str, int], image_format:str='jpg'):
+def download_image(task_id, url: str, dest: str, chapter_number: Union[str, int], page_number: Union[str, int], image_format:str='jpg'):
     '''
     downloads an image using a direct url into the base path folder.
 
@@ -153,9 +198,12 @@ def download_image(url: str, dest: str, chapter_number: Union[str, int], page_nu
         format of downloaded image .
         (default: jpg)
     '''
-
+    #progress.console.log(f"Requesting chapter {chapter_number}: page {page_number}")
     r = requests.get(url, headers=image_headers, stream=True)
+    progress.update(task_id, advance=1)
     if r.status_code == 200:
+        #progress.console.log('STATUS 200')
+        #progress.start_task(task_id)
         r.raw.decode_content = True
         file_name = f'{chapter_number}_{page_number}'
         if(image_format == 'png'):
@@ -163,6 +211,7 @@ def download_image(url: str, dest: str, chapter_number: Union[str, int], page_nu
         else:
             with open(os.path.join(dest, f'{file_name}.jpg'), 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
+        progress.console.log(f"Downloaded {path}")
     else:
         log.error(f'[bold red blink]Unable to download page[/] [medium_spring_green]{page_number}[/]' 
                   f'from chapter [medium_spring_green]{chapter_number}[/], request returned' 
@@ -172,8 +221,11 @@ def exit_handler(sig, frame):
     '''
     stops execution of the program.
     '''
-    time.sleep(1)
-    console.print('[bold red]Stopping Download[/]!')
+    done_event.set()
+    progress.console.print('[bold red]Stopping Download[/]...')
+    time.sleep(2)
+    progress.console.print('[red]Download Stopped[/]!')
+    progress.console.print('')
     sys.exit(0)
 
 def main():
@@ -190,10 +242,47 @@ def main():
     series_url = args.url
     download_webtoon(series_url, args.start, args.end, args.dest, args.images_format)
 
+
+def download_chapter(session: requests.Session, viewer_url: str, chapter_number: int, dest: str, images_format: str='jpg'):
+    '''
+    downloads pages starting of a given chapter, inclusive.
+    stores the downloaded images into the dest path.
+
+    Arguments:
+    ----------
+    session: requests.session
+        the requests session object for persistent parameters.
+    
+    viewer_url: str
+        chapter reader url of the series.
+    
+    chapter_number: int
+        chapter to download
+    
+    dest:
+        destination folder path to store the downloaded image files.
+        (default: current working directory)
+    '''
+    progress.console.log(f'[italic red]Downloading[/italic red] chapter {chapter_number}:')
+    progress.console.log
+    img_urls = get_img_urls(
+            session = session,
+            viewer_url=viewer_url,
+            chapter_number=chapter_number
+        )
+    chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_number}.", total=len(img_urls), type='Pages', number_format='>02d')
+    with ThreadPoolExecutorWithQueueSizeLimit(maxsize=20, max_workers=4) as pool:
+        for page_number, url in enumerate(img_urls):
+            pool.submit(download_image, chapter_download_task, url, dest, chapter_number, page_number, image_format=images_format)
+            if done_event.is_set():
+                return
+        progress.remove_task(chapter_download_task)
+    rich.print(f'chapter {chapter_number} download complete with a total of {len(img_urls)} pages [green]✓')
+    
 def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg'):
     '''
-    downloads all chapter pages starting from start_chapter until end_chapter, inclusive.
-    stores the downloaded images into the dest path.
+    downloads all chaptersstarting from start_chapter until end_chapter, inclusive.
+    stores the downloaded chapter into the dest path.
 
     Arguments:
     ----------
@@ -211,7 +300,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
         (default: last chapter detected)
     
     dest:
-        destination folder path to store the downloaded image files.
+        destination folder path to store the downloaded image files of the chapter.
         (default: current working directory)
 
     '''
@@ -231,37 +320,17 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
         os.makedirs(dest) #creates directory and sub-dirs if dest path does not exist
 
     console.print(f'Downloading [italic medium_spring_green]{series_title}[/] from {series_url}')
-    with Progress(    
-        TextColumn("{task.description}", justify="right"),
-        BarColumn(bar_width=None),
-        "[progress.percentage]{task.percentage:>3.1f}%",
-        "•",
-        TextColumn("[bold magenta]{task.completed}/{task.total}", justify="right"),
-        "*",
-        TimeRemainingColumn()
-        ) as progress:
+    with progress:
         if end_chapter == None:
             n_chapters = get_number_of_chapters(soup)
         else:
             n_chapters = end_chapter
         series_download_task = progress.add_task(
             "[green]Downloading Chapters...", 
-            total=n_chapters - start_chapter + 1)
-
+            total=n_chapters - start_chapter + 1, type='Chapters', number_format='>02d')
         for chapter_number in range(start_chapter, n_chapters + 1):
-            progress.console.log(f'[italic red]Downloading[/italic red] chapter {chapter_number}:')
-            progress.console.log
-            img_urls = get_img_urls(
-                    session = session,
-                    viewer_url=viewer_url,
-                    chapter_number=chapter_number)
-            chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_number}.", total=len(img_urls))
-            for page_number, url in enumerate(img_urls):
-                download_image(url, dest, chapter_number, page_number, image_format=images_format)
-                progress.update(chapter_download_task, advance=1)
-            progress.remove_task(chapter_download_task)
+            download_chapter(session, viewer_url, chapter_number, dest, images_format)
             progress.update(series_download_task, advance=1)
-            rich.print(f'chapter {chapter_number} download complete with a total of {len(img_urls)} pages [green]✓')
 
 if(__name__ == '__main__'):
     main()
