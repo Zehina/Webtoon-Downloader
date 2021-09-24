@@ -44,9 +44,8 @@ class CustomTransferSpeedColumn(ProgressColumn):
         """Show data transfer speed."""
         speed = task.finished_speed or task.speed
         if speed is None:
-            return Text("?", style="progress.data.speed", justify='center')
+            return Text(f"?", style="progress.data.speed", justify='center')
         return Text(f"{task.speed:2.0f} {task.fields.get('type')}/s", style="progress.data.speed", justify='center')
-
 
 ######################## Header Configuration ################################
 if os.name == 'nt':
@@ -72,6 +71,7 @@ progress = Progress(
     BarColumn(bar_width=None),
     "[progress.percentage]{task.percentage:>3.2f}%",
     "•",
+    SpinnerColumn(style="progress.data.speed"),
     CustomTransferSpeedColumn(),
     "•",
     TextColumn("[green]{task.completed:>02d}[/]/[bold green]{task.fields[rendered_total]}[/]", justify="left"),
@@ -220,7 +220,7 @@ def download_image(chapter_download_task_id: int, url: str, dest: str, chapter_n
         r.raw.decode_content = True
         file_name = f'{chapter_number}_{page_number}'
         if(image_format == 'png'):
-            im = Image.open(r.raw).save(os.path.join(dest, f'{file_name}.png'))
+            Image.open(r.raw).save(os.path.join(dest, f'{file_name}.png'))
         else:
             with open(os.path.join(dest, f'{file_name}.jpg'), 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
@@ -347,7 +347,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
                     chapter_download_futures, return_when=concurrent.futures.FIRST_COMPLETED
                 )
 
-                for future in done:
+                for _ in done:
                     progress.update(series_download_task, advance=1)
                     if done_event.is_set():
                         return
