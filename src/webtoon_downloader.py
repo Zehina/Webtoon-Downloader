@@ -235,7 +235,6 @@ def exit_handler(sig, frame):
     '''
     done_event.set()
     progress.console.print('[bold red]Stopping Download[/]...')
-    time.sleep(2)
     progress.console.print('[red]Download Stopped[/]!')
     progress.console.print('')
     sys.exit(0)
