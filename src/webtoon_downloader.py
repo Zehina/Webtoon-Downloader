@@ -163,7 +163,7 @@ def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
     else:
         raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
 
-def get_img_urls(session: requests.session, viewer_url: str, chapter_number: int) -> list[str]:
+def get_img_urls(session: requests.session, viewer_url: str, chapter_number: int) -> list:
     '''
     Extracts the url of all images of a given chapter of the series.
 
