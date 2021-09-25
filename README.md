@@ -14,7 +14,9 @@
   </p>
 </p>
 
-<img src="imgs/demo.gif" alt="Demo" style="border-radius: 15px;filter: drop-shadow(0px 10px 10px #282A36);"/>
+<p align="center">
+  <img width="600" src="imgs/demo.gif">
+</p>
 
 
 <!-- TABLE OF CONTENTS -->
