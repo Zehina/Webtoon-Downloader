@@ -6,9 +6,13 @@ import sys
 from rich.console import Console
 from rich.markdown import Markdown
 
+class MissingArgumentError(TypeError):
+    pass
+
 class Options():
-    def __init__(self, description='Webtoon Downloader'):
+    def __init__(self, description='Webtoon Downloader', console = Console()):
         self.parser = ArgumentParser()
+        self.console = console
         self.initialized = False
     
     def initialize(self):
@@ -19,9 +23,8 @@ class Options():
         ----------
         (argparse.ArgumentParser) parser object.
         '''
-        self.parser.add_argument('-u', '--url', type=str,
-                            help='webtoon url of the title to download', 
-                            required= '--readme' not in sys.argv and '-r' not in sys.argv) #'--readme' in sys.argv 
+        self.parser.add_argument('url', metavar='url', type=str,
+                            help='webtoon url of the title to download', nargs="?")
         self.parser.add_argument('-s', '--start', type=int,
                             help='start chapter', required= False, default=1)
         self.parser.add_argument('-e', '--end', type=int,
@@ -39,7 +42,7 @@ class Options():
         parent_path = pathlib.Path(__file__).parent.parent.resolve()     
         with open(os.path.join(parent_path, "README.md")) as readme:
             markdown = Markdown(readme.read())
-            Console().print(markdown)
+            self.console.print(markdown)
             return
 
     def parse(self):
@@ -50,14 +53,20 @@ class Options():
         if self.args.readme:
             self.print_readme()
             sys.exit(0)
+        elif self.args.url == None:
+            self.parser.print_help()
+            raise MissingArgumentError('url')
+            #self.console.print('[red]Error:[/] Please provide a [green]Url[/]')
         return self.args
 
 class ArgumentParser(argparse.ArgumentParser):
-    def __init__(self, *args, width=78, **kwargs):
+    def __init__(self, *args, width=78, positional_color='red', options_color='yellow', **kwargs):
         self.program = { key: kwargs[key] for key in kwargs }
         self.positionals = []
         self.options = []
         self.width = width
+        self.positional_color = positional_color
+        self.options_color = options_color
         super(ArgumentParser, self).__init__(*args, **kwargs)
 
     def add_argument(self, *args, **kwargs):
@@ -115,7 +124,7 @@ class ArgumentParser(argparse.ArgumentParser):
         if (lwidth > int(self.width / 2) - 1):
             lwidth = max(0, int(self.width / 2) - 1)
             rwidth = int(self.width / 2)
-        #outtmp = "%-" + str(lwidth) + "s %-" + str(rwidth) + "s"
+
         outtmp = "%-" + str(lwidth) + "s %s"
 
         # Wrap text for left and right parts, split into separate lines
@@ -135,7 +144,7 @@ class ArgumentParser(argparse.ArgumentParser):
         # Return output as single string
         return str.join("\n", output)
 
-    def format_help(self, color = 'bold red'):
+    def format_help(self):
         output = []
         dewrapper = textwrap.TextWrapper(width=self.width)
 
@@ -152,6 +161,7 @@ class ArgumentParser(argparse.ArgumentParser):
         lmaxlen = rmaxlen = 0
         for positional in self.positionals:
             positional["left"] = positional["metavar"] if ("metavar" in positional) else positional["name"]
+            lmaxlen = max(lmaxlen, len(positional["left"]))
         for option in self.options:
             if ("action" in option and (option["action"] == "store_true" or option["action"] == "store_false")):
                 option["left"] = str.join(", ", option["flags"])
@@ -178,8 +188,6 @@ class ArgumentParser(argparse.ArgumentParser):
         if (lwidth > int(self.width / 2) - 4):
             lwidth = max(0, int(self.width / 2) - 4)
             rwidth = int(self.width / 2)
-        #outtmp = "  %-" + str(lwidth) + "s  %-" + str(rwidth) + "s"
-        outtmp = "  %-" + str(lwidth) + "s  %s"
 
         # Wrap text for left and right parts, split into separate lines
         lwrapper = textwrap.TextWrapper(width=lwidth)
@@ -189,14 +197,21 @@ class ArgumentParser(argparse.ArgumentParser):
             argument["right"] = rwrapper.wrap(argument["right"])
 
         # Add positional arguments to output
+        tab_spaces = 2 * ' '
+        seperation_spaces_left_right = 4
         if (len(self.positionals) > 0):
             output.append("")
             output.append("Positionals:")
             for positional in self.positionals:
                 for i in range(0, max(len(positional["left"]), len(positional["right"]))):
-                    left = positional["left"][i] if (i < len(positional["left"])) else ""
+                    if (i < len(positional["left"])):
+                        left = f'{tab_spaces}[{self.positional_color}]{positional["left"][i]}[/{self.positional_color}]'
+                        lwidth_formated = len(tab_spaces) + lwidth + ((len(self.positional_color) + 2) * 2 + 1) 
+                    else:
+                        left = len(tab_spaces)
+                        lwidth_formated = lwidth
                     right = positional["right"][i] if (i < len(positional["right"])) else ""
-                    output.append(outtmp % (left, right))
+                    output.append(left.ljust(lwidth_formated + seperation_spaces_left_right) + right)
 
         # Add option arguments to output
         if (len(self.options) > 0):
@@ -206,15 +221,16 @@ class ArgumentParser(argparse.ArgumentParser):
                 for i in range(0, max(len(option["left"]), len(option["right"]))):                    
                     if (i < len(option["left"])):
                         replacements_made = option["left"][i].count(',')
-                        left = f'[{color}]{option["left"][i].replace(",", f"[/{color}],[{color}]")}[/{color}]'
-                        lwidth_formated = lwidth + ((len(color) + 2) * 2 + 1) * (replacements_made + 1)
+                        left = f'{tab_spaces}[{self.options_color}]{option["left"][i].replace(",", f"[/{self.options_color}],[{self.options_color}]")}[/{self.options_color}]'
+                        lwidth_formated = len(tab_spaces) + lwidth + ((len(self.options_color) + 2) * 2 + 1) * (replacements_made + 1)
                     else:
                         left = ""
-                        lwidth_formated = lwidth
+                        lwidth_formated = lwidth + len(tab_spaces)
+                    print(option["right"][i])
+
                     #left = option["left"][i] if (i < len(option["right"])) else ""
                     right = option["right"][i] if (i < len(option["right"])) else ""
-                    output.append(left.ljust(lwidth_formated + 2) + right)
-                    #output.append(outtmp % (left, right))
+                    output.append(left.ljust(lwidth_formated + seperation_spaces_left_right) + right)
 
         # Add epilog to output if present
         if ("epilog" in self.program and self.program["epilog"] != "" and not str.isspace(self.program["epilog"])):
