@@ -226,7 +226,6 @@ class ArgumentParser(argparse.ArgumentParser):
                     else:
                         left = ""
                         lwidth_formated = lwidth + len(tab_spaces)
-                    print(option["right"][i])
 
                     #left = option["left"][i] if (i < len(option["right"])) else ""
                     right = option["right"][i] if (i < len(option["right"])) else ""
