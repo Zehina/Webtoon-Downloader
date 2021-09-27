@@ -73,7 +73,7 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
 ## Usage
 * Downloading all chapters of a given title.
     ```ps
-    $ python webtoon_downloader.py "https://www.webtoons.com/en/.../.../list?title_no=...&page=1"
+    $ python webtoon_downloader.py "www.webtoons.com/en/.../.../list?title_no=...&page=1"
     ```
 * Downloading all released chapters starting from chapter 10 until the last released chapter.
     ```ps
