@@ -268,6 +268,8 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
             viewer_url=viewer_url,
             chapter_number=chapter_number
         )
+    if not os.path.exists(dest):
+        os.makedirs(dest)
     progress.update(chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls))
     progress.start_task(chapter_download_task_id)
     with ThreadPoolExecutorWithQueueSizeLimit(maxsize=10, max_workers=4) as pool:
@@ -278,7 +280,7 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
     log.info(f'Chapter {chapter_number} download complete with a total of {len(img_urls)} pages [green]✓')
     progress.remove_task(chapter_download_task_id)
     
-def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg'):
+def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg', seperate_chapters=False):
     '''
     downloads all chaptersstarting from start_chapter until end_chapter, inclusive.
     stores the downloaded chapter into the dest path.
@@ -298,10 +300,13 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
         end range of chapter to download, inclusive of this chapter number.
         (default: last chapter detected)
     
-    dest:
+    dest: str
         destination folder path to store the downloaded image files of the chapter.
         (default: current working directory)
 
+    seperate_chapters: bool
+        seperate downloaded chapters in their own folder under the dest path if true, 
+        else stores all images in the dest folder.
     '''
     session = requests.session()
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
@@ -335,9 +340,10 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
         with ThreadPoolExecutor(max_workers=4) as pool:
             chapter_download_futures = set()
             for chapter_number in itertools.islice(chapter_numbers_to_download, n_concurrent_chapters_download):
+                    chapter_dest = os.path.join(dest, str(chapter_number)) if seperate_chapters else dest
                     chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_number}.",  type='Pages', type_color='grey85', number_format='>02d', start=False, rendered_total='??')
                     chapter_download_futures.add(
-                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_number, dest, images_format)
+                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_number, chapter_dest, images_format)
                     )
                 
             while chapter_download_futures:
@@ -353,9 +359,10 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
 
                 # Scheduling the next set of futures.
                 for chapter_number in itertools.islice(chapter_numbers_to_download, len(done)):
+                    chapter_dest = os.path.join(dest, str(chapter_number)) if seperate_chapters else dest
                     chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_number}.", type='Pages', type_color='grey85', number_format='>02d', start=False, rendered_total='??')
                     chapter_download_futures.add(
-                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_number, dest, images_format)
+                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_number, chapter_dest, images_format)
                     )
     
     rich.print(f'Successfully Downloaded [red]{n_chapters_to_download}[/] {"chapter" if n_chapters_to_download <= 1 else "chapters"} of [medium_spring_green]{series_title}[/] in [italic plum2]{os.path.abspath(dest)}[/].')
@@ -381,7 +388,7 @@ def main():
             console.print(markdown)
             return
     series_url = args.url
-    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format)
+    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format, args.seperate)
 
 if(__name__ == '__main__'):
     main()

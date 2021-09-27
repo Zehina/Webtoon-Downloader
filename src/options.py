@@ -34,6 +34,9 @@ class Options():
         self.parser.add_argument('--images-format', required=False,
                             help='image format of downloaded images, available: (png, jpg)', 
                             choices=['jpg', 'png'], default='jpg')
+        self.parser.add_argument('--seperate', required=False,
+                            help='download each chapter in seperate folders',
+                            action='store_true', default=False)
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
                             'more help details'), required=False, action='store_true')
         self.parser._positionals.title = "commands"
@@ -57,6 +60,7 @@ class Options():
             self.parser.print_help()
             raise MissingArgumentError('url')
             #self.console.print('[red]Error:[/] Please provide a [green]Url[/]')
+        print(self.args)
         return self.args
 
 class ArgumentParser(argparse.ArgumentParser):
