@@ -331,6 +331,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
         else:
             n_chapters = end_chapter
         n_chapters_to_download = n_chapters - start_chapter + 1
+        progress.console.log(f"[italic]start:[/] [green]{start_chapter}[/]  [italic]end:[/] [green]{end_chapter}[/] -> [italic]N of chapters:[/] [green]{n_chapters_to_download}[/]")
         series_download_task = progress.add_task(
             "[green]Downloading Chapters...", 
             total=n_chapters_to_download, type='Chapters', type_color='grey93', number_format='>02d', rendered_total=n_chapters_to_download)
