@@ -77,52 +77,68 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
     ```
 * Downloading all released chapters starting from chapter 10 until the last released chapter.
     ```ps
-    $ python webtoon_downloader.py "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --start 10
+    $ python webtoon_downloader.py [url] --start 10
     ```
 * Downloading all released chapters until chapter 150.
     ```ps
-    $ python webtoon_downloader.py "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --end 150
+    $ python webtoon_downloader.py [url] --end 150
     ```
 * Downloading all released chapters between chapter 35 and chapter 67, inclusive of both of these chapters.
     ```ps
-    $ python webtoon_downloader.py "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --start 35 --end 67
+    $ python webtoon_downloader.py [url] --start 35 --end 67
     ```
 * You can change the format of the downloaded pictures with the ```--images-format``` argument
     ```ps
-    $ python webtoon_downloader.py "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --images-format 'png'
+    $ python webtoon_downloader.py [url] --images-format 'png'
     ```
-* By default, the downloaded chapters will be storedr under the current working directory with the folder name [series_title]. 
-For example, if you download Tower of God, Chapter 150.
+* By default, the downloaded chapters will be stored under the current working directory with the folder name [series_title]. 
+For example, downloading Tower of God, Chapter 150 would result in the following:
     ```ps  
     Tower_of_God
         │--150_001.jpg
         │--150_002.jpg
         │--150_003.jpg
+        │...
     ```
 * In order to download these images into a different folder, you can use the ```--dest``` optional argument.
     ```ps
-    $ python webtoon_downloader.py "https://www.webtoons.com/en/.../.../list?title_no=...&page=1" --dest ./path/to/parent/folder/of/downloaded/images
+    $ python webtoon_downloader.py [url] --dest ./path/to/parent/folder/of/downloaded/images
+    ```
+
+* The downloaded images of the chapters are by default all located in the ```[dest]```, however these images can be seperated into seperate directories by providing the ```--seperate``` argument, where each directory corresponds to a downloaded chapter.
+    ```ps
+    $ python webtoon_downloader.py [url] --seperate
+    ```
+  For example, downloading Tower of God, Chapter 150 to 152 would result in the following:
+    ```ps  
+    Tower_of_God
+        │150
+            │--150_001.jpg
+            │--150_002.jpg
+            │--150_003.jpg
+            │...
+        │151
+            │--151_001.jpg
+            │--151_002.jpg
+            │--151_003.jpg
+            │...
+        │152
+            │--152_001.jpg
+            │--152_002.jpg
+            │--152_003.jpg
+            │...
     ```
 
 For more details on positional arguments, please use the ```-h ``` or ```--help``` argument:
 ```console
 py webtoon_downloader.py --help
-
-Usage: webtoon_downloader.py [-h|--help] [-s|--start] [-e|--end] [-d|--dest] [--images-format] [--readme|-r] url
-
-Positionals:
-  url                webtoon url of the title to download
-
-Options:
-  -h, --help         show this help message and exit
-  -s, --start        start chapter (default: 1)
-  -e, --end          end chapter (default: None)
-  -d, --dest         download parent folder path
-  --images-format    image format of downloaded images, available: (png, jpg)
-                     (default: 'jpg')
-  --readme, -r       displays readme file content for more help details
-
 ```
+
+<p align="center">
+  <img src="imgs/help.svg">
+</p>
+
+
 <!-- CONTRIBUTING -->
 ## Contributing
 
