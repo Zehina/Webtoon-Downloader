@@ -8,7 +8,7 @@ long_description = (here / 'README.md').read_text(encoding='utf-8')
 
 setup(
     name='Webtoon_Downloader',
-    version='0.5.1',
+    version='0.7.0',
     description='Webtoons Scraper for downloading chapters of any series hosted on the webtoons website.',
     author='Ali Taibi',
     author_email='zehinadev@gmail.com',

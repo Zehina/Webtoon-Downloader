@@ -280,7 +280,7 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
     log.info(f'Chapter {chapter_number} download complete with a total of {len(img_urls)} pages [green]✓')
     progress.remove_task(chapter_download_task_id)
     
-def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg', seperate_chapters=False):
+def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg', download_latest_chapter=False, seperate_chapters=False):
     '''
     downloads all chaptersstarting from start_chapter until end_chapter, inclusive.
     stores the downloaded chapter into the dest path.
@@ -294,7 +294,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
     
     start_chapter: int
         starting range of chapters to download.
-        (default: 1)
+        (default: last chapter detected)
     
     end_chapter: int
         end range of chapter to download, inclusive of this chapter number.
@@ -326,12 +326,23 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
 
     progress.console.print(f'Downloading [italic medium_spring_green]{series_title}[/] from {series_url}')
     with progress:
-        if end_chapter == None:
-            n_chapters = get_number_of_chapters(soup)
+        if download_latest_chapter:
+            end_chapter = n_chapters = start_chapter = get_number_of_chapters(soup)
         else:
-            n_chapters = end_chapter
-        n_chapters_to_download = n_chapters - start_chapter + 1
-        progress.console.log(f"[italic]start:[/] [green]{start_chapter}[/]  [italic]end:[/] [green]{end_chapter}[/] -> [italic]N of chapters:[/] [green]{n_chapters_to_download}[/]")
+            if start_chapter == None:
+                start_chapter = 1 # default: chapter 1 start
+            if end_chapter == None:
+                end_chapter = n_chapters = get_number_of_chapters(soup)
+            else:
+                n_chapters = end_chapter
+
+
+        if download_latest_chapter:
+            n_chapters_to_download = 1
+            progress.console.log(f"[plum2]Latest Chapter[/] -> [green]{end_chapter}[/]")
+        else:
+            n_chapters_to_download = n_chapters - start_chapter + 1
+            progress.console.log(f"[italic]start:[/] [green]{start_chapter}[/]  [italic]end:[/] [green]{end_chapter}[/] -> [italic]N of chapters:[/] [green]{n_chapters_to_download}[/]")
         series_download_task = progress.add_task(
             "[green]Downloading Chapters...", 
             total=n_chapters_to_download, type='Chapters', type_color='grey93', number_format='>02d', rendered_total=n_chapters_to_download)
@@ -381,7 +392,11 @@ def main():
     signal.signal(signal.SIGINT, exit_handler)
     parser = Options()
     parser.initialize()
-    args = parser.parse()
+    try:
+        args = parser.parse()
+    except Exception as e:
+        console.print(f'[red]Error:[/] {e}')
+        return -1
     if args.readme:
         parent_path = pathlib.Path(__file__).parent.parent.resolve()     
         with open(os.path.join(parent_path, "README.md")) as readme:
@@ -389,7 +404,7 @@ def main():
             console.print(markdown)
             return
     series_url = args.url
-    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format, args.seperate)
+    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format, args.latest, args.seperate)
 
 if(__name__ == '__main__'):
     main()

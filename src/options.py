@@ -6,7 +6,14 @@ import sys
 from rich.console import Console
 from rich.markdown import Markdown
 
-class MissingArgumentError(TypeError):
+class MutuallyExclusiveArgumentsError(Exception):
+    '''Exception raised when a group of arguments should be mutually exclusive from another set of arguments'''
+    
+    def __init__(self, args1, args2):
+        self.args1 = args1
+        self.args2 = args2
+        self.message = f"Arguments from {args1} should be mutually exclusive from {args2}"
+        super().__init__(self.message)
     pass
 
 class Options():
@@ -26,9 +33,12 @@ class Options():
         self.parser.add_argument('url', metavar='url', type=str,
                             help='webtoon url of the title to download', nargs="?")
         self.parser.add_argument('-s', '--start', type=int,
-                            help='start chapter', required= False, default=1)
+                            help='start chapter', required= False, default=None)
         self.parser.add_argument('-e', '--end', type=int,
                             help='end chapter', required= False, default=None)
+        self.parser.add_argument('-l', '--latest', required=False,
+                            help='download only the latest chapter',
+                            action='store_true', default=False)
         self.parser.add_argument('-d', '--dest', type=str,
                             help='download parent folder path', required= False)
         self.parser.add_argument('--images-format', required=False,
@@ -58,9 +68,10 @@ class Options():
             sys.exit(0)
         elif self.args.url == None:
             self.parser.print_help()
-            raise MissingArgumentError('url')
-            #self.console.print('[red]Error:[/] Please provide a [green]Url[/]')
-        print(self.args)
+            sys.exit(0)
+        elif (self.args.start and self.args.latest) or (self.args.end and self.args.latest):
+            self.parser.print_help()
+            raise MutuallyExclusiveArgumentsError(['-s','--start', '-e', '--end'], ['-l', '--latest'])
         return self.args
 
 class ArgumentParser(argparse.ArgumentParser):
