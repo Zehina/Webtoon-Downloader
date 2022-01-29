@@ -87,6 +87,10 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
     ```ps
     $ python webtoon_downloader.py [url] --start 35 --end 67
     ```
+* Downloading only the latest released chapter using either ```-l``` or ```--latest```.
+    ```ps
+    $ python webtoon_downloader.py [url] --latest
+    ```
 * You can change the format of the downloaded pictures with the ```--images-format``` argument
     ```ps
     $ python webtoon_downloader.py [url] --images-format 'png'
