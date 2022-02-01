@@ -103,12 +103,16 @@ done_event = Event()
 n_concurrent_chapters_download = 4
 
 
-def get_series_title(html: Union[str, BeautifulSoup]) -> str:
+def get_series_title(series_url, html: Union[str, BeautifulSoup]) -> str:
     '''
     Extracts the full title series from the html of the scraped url.
 
     Arguments:
     ----------
+
+    series_url: str
+        url of the series to scrap from the webtoons.com website
+        series title are grabbed differently for webtoons of the challenge category
     html : str | BeautifulSoup  
         the html body of the scraped series url, passed either as a raw string or a bs4.BeautifulSoup object 
 
@@ -116,12 +120,18 @@ def get_series_title(html: Union[str, BeautifulSoup]) -> str:
     ----------
     (str): The full title of the series.
     '''
+    if 'challenge' in series_url.lower().split('/'):
+        title_html_element = 'h3'
+    else:
+        title_html_element = 'h1'
+    
     if isinstance(html, str):
-        return BeautifulSoup(html).find('h1', class_='subj').text
+        series_title = BeautifulSoup(html).find(title_html_element, class_='subj').text
     elif isinstance(html, BeautifulSoup):
-        return html.find('h1', class_='subj').text
+        series_title = html.find(title_html_element, class_='subj').text
     else:
         raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
+    return series_title.replace('\n', '').replace('\t', '')
 
 def get_number_of_chapters(html: Union[str, BeautifulSoup]) -> int:
     '''
@@ -315,7 +325,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
     r = session.get(f'{series_url}', headers=headers)
     soup = BeautifulSoup(r.text, 'lxml')
     viewer_url = get_chapter_viewer_url(soup)
-    series_title = get_series_title(soup)
+    series_title = get_series_title(series_url, soup)
     if not(dest):
         dest = series_title.replace(" ", "_") #uses title name of series as folder name if dest is None
     if not os.path.exists(dest):
