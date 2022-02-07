@@ -386,15 +386,6 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
     
     rich.print(f'Successfully Downloaded [red]{n_chapters_to_download}[/] {"chapter" if n_chapters_to_download <= 1 else "chapters"} of [medium_spring_green]{series_title}[/] in [italic plum2]{os.path.abspath(dest)}[/].')
 
-
-def chunked_iterable(iterable, size):
-    it = iter(iterable)
-    while True:
-        chunk = tuple(itertools.islice(it, size))
-        if not chunk:
-            break
-        yield chunk
-
 def main():
     signal.signal(signal.SIGINT, exit_handler)
     parser = Options()
