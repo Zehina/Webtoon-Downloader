@@ -146,26 +146,6 @@ def get_series_title(series_url, html: Union[str, BeautifulSoup]) -> str:
         raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
     return series_title.replace('\n', '').replace('\t', '')
 
-def get_number_of_chapters(html: Union[str, BeautifulSoup]) -> int:
-    """
-    Extracts the total number of chapters from the html of the scraped url.
-
-    Arguments:
-    ----------
-    html : str | BeautifulSoup  
-        the html body of the scraped series url, passed either as a raw string or a bs4.BeautifulSoup object 
-
-    Returns:
-    ----------
-    (int): The total number of chapters title of the series.
-    """
-    if isinstance(html, str):
-        return int(BeautifulSoup(html).find('li', attrs={"data-episode-no": True})['data-episode-no'])
-    elif isinstance(html, BeautifulSoup):
-        return int(html.find('li', attrs={"data-episode-no": True})['data-episode-no'])
-    else:
-        raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
-
 def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
     """
     Extracts the url of the webtoon chapter reader related to the series given in the series url.
