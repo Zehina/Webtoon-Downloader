@@ -104,7 +104,7 @@ n_concurrent_chapters_download = 4
 
 
 def get_series_title(series_url, html: Union[str, BeautifulSoup]) -> str:
-    '''
+    """
     Extracts the full title series from the html of the scraped url.
 
     Arguments:
@@ -119,7 +119,7 @@ def get_series_title(series_url, html: Union[str, BeautifulSoup]) -> str:
     Returns:
     ----------
     (str): The full title of the series.
-    '''
+    """
     if 'challenge' in series_url.lower().split('/'):
         title_html_element = 'h3'
     else:
@@ -134,7 +134,7 @@ def get_series_title(series_url, html: Union[str, BeautifulSoup]) -> str:
     return series_title.replace('\n', '').replace('\t', '')
 
 def get_number_of_chapters(html: Union[str, BeautifulSoup]) -> int:
-    '''
+    """
     Extracts the total number of chapters from the html of the scraped url.
 
     Arguments:
@@ -145,7 +145,7 @@ def get_number_of_chapters(html: Union[str, BeautifulSoup]) -> int:
     Returns:
     ----------
     (int): The total number of chapters title of the series.
-    '''
+    """
     if isinstance(html, str):
         return int(BeautifulSoup(html).find('li', attrs={"data-episode-no": True})['data-episode-no'])
     elif isinstance(html, BeautifulSoup):
@@ -154,7 +154,7 @@ def get_number_of_chapters(html: Union[str, BeautifulSoup]) -> int:
         raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
 
 def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
-    '''
+    """
     Extracts the url of the webtoon chapter reader related to the series given in the series url.
 
     Arguments:
@@ -165,7 +165,7 @@ def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
     Returns:
     ----------
     (str): chapter reader url.
-    '''
+    """
     if isinstance(html, str):
         return BeautifulSoup(html).find('li', attrs={'data-episode-no': True}).find('a')['href'].split('&')[0]
     elif isinstance(html, BeautifulSoup):
@@ -173,8 +173,7 @@ def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
     else:
         raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
 
-def get_img_urls(session: requests.session, viewer_url: str, chapter_number: int) -> list:
-    '''
+    """
     Extracts the url of all images of a given chapter of the series.
 
     Arguments:
@@ -191,15 +190,14 @@ def get_img_urls(session: requests.session, viewer_url: str, chapter_number: int
     Returns:
     ----------
     (list[str]): list of all image urls extracted from the chapter.
-    '''
-    r = session.get(f'{viewer_url}&episode_no={chapter_number}')
+    """
     soup = BeautifulSoup(r.text, 'lxml')
     return [url['data-url'] 
         for url 
         in soup.find('div', class_='viewer_img _img_viewer_area').find_all('img')]
 
 def download_image(chapter_download_task_id: int, url: str, dest: str, chapter_number: Union[str, int], page_number: Union[str, int], image_format:str='jpg'):
-    '''
+    """
     downloads an image using a direct url into the base path folder.
 
     Arguments:
@@ -222,7 +220,7 @@ def download_image(chapter_download_task_id: int, url: str, dest: str, chapter_n
     image_format: str
         format of downloaded image .
         (default: jpg)
-    '''
+    """
     log.debug(f"Requesting chapter {chapter_number}: page {page_number}")
     r = requests.get(url, headers=image_headers, stream=True)
     progress.update(chapter_download_task_id, advance=1)
@@ -240,17 +238,17 @@ def download_image(chapter_download_task_id: int, url: str, dest: str, chapter_n
                   f'error [bold red blink]{r.status_code}[/]')
 
 def exit_handler(sig, frame):
-    '''
+    """
     stops execution of the program.
-    '''
+    """
     done_event.set()
     progress.console.print('[bold red]Stopping Download[/]...')
     progress.console.print('[red]Download Stopped[/]!')
     progress.console.print('')
     sys.exit(0)
 
-def download_chapter(chapter_download_task_id: int, session: requests.Session, viewer_url: str, chapter_number: int, dest: str, images_format: str='jpg'):
-    '''
+def download_chapter(chapter_download_task_id: int, session: requests.Session, viewer_url: str, chapter_info: ChapterInfo, dest: str, images_format: str='jpg'):
+    """
     downloads pages starting of a given chapter, inclusive.
     stores the downloaded images into the dest path.
 
@@ -271,8 +269,7 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
     dest:
         destination folder path to store the downloaded image files.
         (default: current working directory)
-    '''
-    log.debug(f'[italic red]Accessing[/italic red] chapter {chapter_number}')
+    """
     img_urls = get_img_urls(
             session = session,
             viewer_url=viewer_url,
@@ -291,7 +288,7 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
     progress.remove_task(chapter_download_task_id)
     
 def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg', download_latest_chapter=False, seperate_chapters=False):
-    '''
+    """
     downloads all chaptersstarting from start_chapter until end_chapter, inclusive.
     stores the downloaded chapter into the dest path.
 
@@ -304,7 +301,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
     
     start_chapter: int
         starting range of chapters to download.
-        (default: last chapter detected)
+        (default: first chapter detected)
     
     end_chapter: int
         end range of chapter to download, inclusive of this chapter number.
@@ -317,7 +314,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
     seperate_chapters: bool
         seperate downloaded chapters in their own folder under the dest path if true, 
         else stores all images in the dest folder.
-    '''
+    """
     session = requests.session()
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
     session.cookies.set("needCCPA", "FALSE", domain=".webtoons.com")
