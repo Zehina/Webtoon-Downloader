@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from options import Options
 from PIL import Image
 from threading import Event
-from typing import Union
+from typing import List, Union
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from rich.console import Console
 from rich.logging import RichHandler
@@ -166,7 +166,7 @@ def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
     else:
         raise TypeError('variable passed is neither a string nor a BeautifulSoup object')
 
-def get_chapters_details(session: requests.session, viewer_url: str, start_chapter: int = 1, end_chapter: int = None) -> list[ChapterInfo]:
+def get_chapters_details(session: requests.session, viewer_url: str, start_chapter: int = 1, end_chapter: int = None) -> List[ChapterInfo]:
     """
     Extracts data about all chapters of the series.
 
