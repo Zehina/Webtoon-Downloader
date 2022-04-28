@@ -10,6 +10,7 @@ import shutil
 import signal
 import sys
 import time
+import zipfile
 from bs4 import BeautifulSoup
 from dataclasses import dataclass, field
 from options import Options
@@ -260,11 +261,16 @@ def download_image(chapter_download_task_id: int, url: str, dest: str, chapter_n
     if r.status_code == 200:
         r.raw.decode_content = True
         file_name = f'{chapter_number}_{page_number}'
+        final_file_name = ''
         if(image_format == 'png'):
-            Image.open(r.raw).save(os.path.join(dest, f'{file_name}.png'))
+            final_file_name = os.path.join(dest, f'{file_name}.png')
+            Image.open(r.raw).save(final_file_name)
         else:
-            with open(os.path.join(dest, f'{file_name}.jpg'), 'wb') as f:
+            final_file_name = os.path.join(dest, f'{file_name}.jpg')
+            with open(final_file_name, 'wb') as f:
                 shutil.copyfileobj(r.raw, f)
+
+        return final_file_name
     else:
         log.error(f'[bold red blink]Unable to download page[/] [medium_spring_green]{page_number}[/]' 
                   f'from chapter [medium_spring_green]{chapter_number}[/], request returned' 
@@ -280,7 +286,7 @@ def exit_handler(sig, frame):
     progress.console.print('')
     sys.exit(0)
 
-def download_chapter(chapter_download_task_id: int, session: requests.Session, viewer_url: str, chapter_info: ChapterInfo, dest: str, images_format: str='jpg'):
+def download_chapter(chapter_download_task_id: int, session: requests.Session, viewer_url: str, chapter_info: ChapterInfo, dest: str, images_format: str='jpg', compress_cbz=False):
     """
     downloads pages starting of a given chapter, inclusive.
     stores the downloaded images into the dest path.
@@ -313,15 +319,28 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
         os.makedirs(dest)
     progress.update(chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls))
     progress.start_task(chapter_download_task_id)
+    image_download_futures = set()
     with ThreadPoolExecutorWithQueueSizeLimit(maxsize=10, max_workers=4) as pool:
         for page_number, url in enumerate(img_urls):
-            pool.submit(download_image, chapter_download_task_id, url, dest, chapter_info.chapter_number, page_number, image_format=images_format)
+            image_download_futures.add(
+                pool.submit(download_image, chapter_download_task_id, url, dest, chapter_info.chapter_number, page_number, image_format=images_format)
+            )
             if done_event.is_set():
                 return
+        
+        concurrent.futures.wait(image_download_futures, return_when=concurrent.futures.ALL_COMPLETED)
+
+        if compress_cbz:
+            with zipfile.ZipFile(f'{dest}.cbz', 'w') as cbz_zip:
+                for future in image_download_futures:
+                    image_file_path = future.result()
+                    image_folder, image_file_name = os.path.split(image_file_path)
+                    cbz_zip.write(image_file_path, compress_type=zipfile.ZIP_STORED, arcname=image_file_name)
+
     log.info(f'Chapter {chapter_info.chapter_number} download complete with a total of {len(img_urls)} pages [green]✓')
     progress.remove_task(chapter_download_task_id)
-    
-def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg', download_latest_chapter=False, separate_chapters=False):
+
+def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest: str, images_format: str='jpg', download_latest_chapter=False, separate_chapters=False, compress_cbz=False):
     """
     downloads all chaptersstarting from start_chapter until end_chapter, inclusive.
     stores the downloaded chapter into the dest path.
@@ -348,6 +367,9 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
     separate_chapters: bool
         separate downloaded chapters in their own folder under the dest path if true, 
         else stores all images in the dest folder.
+    
+    compress_cbz: bool
+        compress separate chapters to a .cbz archive if true
     """
     session = requests.session()
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
@@ -391,7 +413,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
                     chapter_dest = os.path.join(dest, str(chapter_info.chapter_number)) if separate_chapters else dest
                     chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_info.chapter_number}.",  type='Pages', type_color='grey85', number_format='>02d', start=False, rendered_total='??')
                     chapter_download_futures.add(
-                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_info, chapter_dest, images_format)
+                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_info, chapter_dest, images_format, compress_cbz)
                     )
                 
             while chapter_download_futures:
@@ -410,7 +432,7 @@ def download_webtoon(series_url: str, start_chapter: int, end_chapter: int, dest
                     chapter_dest = os.path.join(dest, str(chapter_info.chapter_number)) if separate_chapters else dest
                     chapter_download_task = progress.add_task(f"[plum2]Chapter {chapter_info.chapter_number}.", type='Pages', type_color='grey85', number_format='>02d', start=False, rendered_total='??')
                     chapter_download_futures.add(
-                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_info, chapter_dest, images_format)
+                        pool.submit(download_chapter, chapter_download_task, session, viewer_url, chapter_info, chapter_dest, images_format, compress_cbz)
                     )
     
     rich.print(f'Successfully Downloaded [red]{n_chapters_to_download}[/] {"chapter" if n_chapters_to_download <= 1 else "chapters"} of [medium_spring_green]{series_title}[/] in [italic plum2]{os.path.abspath(dest)}[/].')
@@ -432,7 +454,8 @@ def main():
             return
     series_url = args.url
     separate = args.seperate or args.separate
-    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format, args.latest, separate)
+    compress_cbz = args.cbz and args.separate
+    download_webtoon(series_url, args.start, args.end, args.dest, args.images_format, args.latest, separate, compress_cbz)
 
 if(__name__ == '__main__'):
     main()

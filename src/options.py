@@ -52,6 +52,9 @@ class Options():
                             action='store_true', default=False)
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
                             'more help details'), required=False, action='store_true')
+        self.parser.add_argument('--cbz', required=False,
+                            help='compress each chapter to a .cbz comic archive. Only works when also using the --separate option',
+                            action='store_true', default=False)
         self.parser._positionals.title = "commands"
 
     def print_readme(self):
