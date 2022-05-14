@@ -133,6 +133,12 @@ For example, downloading Tower of God, Chapter 150 would result in the following
             │...
     ```
 
+* When downloading images into separate directories, the individual directories can additionally be compressed into .cbz files by providing the ```--cbz``` argument.
+    ```ps
+    $ python webtoon_downloader.py [url] --separate --cbz
+    ```
+    > NOTE: The ```--cbz``` argument only works when the ```--separate``` argument is also provided.
+
 For more details on positional arguments, please use the ```-h ``` or ```--help``` argument:
 ```console
 py webtoon_downloader.py --help
