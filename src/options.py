@@ -45,6 +45,9 @@ class Options():
                             help='image format of downloaded images, available: (png, jpg)', 
                             choices=['jpg', 'png'], default='jpg')
         self.parser.add_argument('--seperate', required=False,
+                            help='[DEPRECATED] download each chapter in seperate folders',
+                            action='store_true', default=False)
+        self.parser.add_argument('--separate', required=False,
                             help='download each chapter in seperate folders',
                             action='store_true', default=False)
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
