@@ -454,7 +454,7 @@ def main():
             return
     series_url = args.url
     separate = args.seperate or args.separate
-    compress_cbz = args.cbz and args.separate
+    compress_cbz = args.cbz and separate
     download_webtoon(series_url, args.start, args.end, args.dest, args.images_format, args.latest, separate, compress_cbz)
 
 if(__name__ == '__main__'):
