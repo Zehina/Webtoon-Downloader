@@ -1,33 +1,16 @@
 import logging
 import os
 import pathlib
-from rich.console import Console
-from rich.logging import RichHandler
+from WebtoonDownloader import logger
 from WebtoonDownloader import WebtoonDownloader
 from WebtoonDownloader.options import Options
 from WebtoonDownloader.classes.DownloadSettings import DownloadSettings
 from WebtoonDownloader.classes.progress.DownloadProgress import DownloadProgress
 from WebtoonDownloader.classes.Series import Series
 
-######################## Log Configuration ################################
-console = Console()
-logging.getLogger("urllib3").setLevel(logging.CRITICAL)
-log = logging.getLogger(__name__)
-FORMAT = "%(message)s"
-LOG_FILENAME = 'webtoon_downloader.log'
-progress = DownloadProgress()
-
-logging.basicConfig(
-    level="INFO", format=FORMAT, datefmt="[%X]", 
-    handlers=[RichHandler(
-        rich_tracebacks=True, 
-        tracebacks_show_locals= True, 
-        markup=True
-    )]
-)
-###########################################################################
-
 n_concurrent_chapters_download = 2
+logger.configure_logger("DEBUG")
+log = logging.getLogger(__name__)
 
 def main():
     parser = Options()
@@ -46,6 +29,7 @@ def main():
     series_url = args.url
     separate = args.seperate or args.separate
     compress_cbz = args.cbz and separate
+    progress = DownloadProgress()
     webtoon_downloader = WebtoonDownloader(
         series= Series(series_url), 
         download_settings= DownloadSettings(
