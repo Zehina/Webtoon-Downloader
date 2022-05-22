@@ -1,30 +1,17 @@
 import concurrent
 import itertools
 import os
-import queue
-import requests
 import signal
 import sys
+import time
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
 from threading import Event
 from typing import List, Union
 from WebtoonDownloader.classes.tasks.chapter_download_task import download_chapter
-from WebtoonDownloader.classes.threads.ThreadPoolExecutorWithQueueSizeLimit import ThreadPoolExecutorWithQueueSizeLimit
 from WebtoonDownloader.classes.DownloadSettings import DownloadSettings
 from WebtoonDownloader.classes.WebtoonSession import WebtoonSession
-from WebtoonDownloader.classes.Series import Series
-
-@dataclass(order=True, frozen=True)
-class ChapterInfo:
-    sort_index: int = field(init=False, repr=False)
-    title: str
-    chapter_number: int #released chapter number
-    data_episode_no: int #chapter number referenced by webtoon server
-    content_url: str
-    def __post_init__(self):
-        object.__setattr__(self, 'sort_index', self.chapter_number)
+from WebtoonDownloader.classes.Series import ChapterInfo, Series
 
 class WebtoonDownloader():
     def __init__(self, series: Series, download_settings: DownloadSettings, log, progress):
@@ -79,7 +66,7 @@ class WebtoonDownloader():
                 total=n_chapters_to_download, type='Chapters', type_color='grey93', number_format='>02d', rendered_total=n_chapters_to_download)
 
             chapters_to_download = iter(chapters_to_download) # convert into an interable that can be consumed
-            with ThreadPoolExecutor(max_workers=4) as pool:
+            with ThreadPoolExecutor(max_workers=6) as pool:
                 chapter_download_futures = set()
                 for chapter_info in itertools.islice(chapters_to_download, self.download_settings.max_concurrent):
                         chapter_dest = os.path.join(dest, str(chapter_info.chapter_number)) if self.download_settings.separate else dest
@@ -90,9 +77,10 @@ class WebtoonDownloader():
                                 chapter_download_task_id=chapter_download_task, 
                                 dest=chapter_dest, 
                                 chapter_info=chapter_info, 
-                                image_extractor= lambda: self.extract_img_urls(data_episode_num=chapter_info.data_episode_no),
-                                progress_notifier= lambda: self.progress_chapter_download_task(chapter_download_task),
-                                setup_progress= lambda total_imgs: self.setup_chapter_task_progress(chapter_download_task, total_imgs),
+                                image_extractor= lambda x=chapter_info.data_episode_no: self.extract_img_urls(x),
+                                setup_progress= lambda total_imgs, x=chapter_download_task: self.setup_chapter_task_progress(x, total_imgs),
+                                progress_notifier= lambda x=chapter_download_task: self.progress_chapter_download_task(x),
+                                completion_notifier= lambda x=chapter_download_task: self.chapter_task_completion(x)
                             )
                         )
                     
@@ -122,9 +110,10 @@ class WebtoonDownloader():
                                 chapter_download_task_id=chapter_download_task, 
                                 dest=chapter_dest, 
                                 chapter_info=chapter_info, 
-                                image_extractor= lambda: self.extract_img_urls(data_episode_num=chapter_info.data_episode_no),
-                                progress_notifier= lambda: self.progress_chapter_download_task(chapter_download_task),
-                                setup_progress= lambda total_imgs: self.setup_chapter_task_progress(chapter_download_task, total_imgs),
+                                image_extractor= lambda x=chapter_info.data_episode_no: self.extract_img_urls(x),
+                                setup_progress= lambda total_imgs, x=chapter_download_task: self.setup_chapter_task_progress(x, total_imgs),
+                                progress_notifier= lambda x=chapter_download_task: self.progress_chapter_download_task(x),
+                                completion_notifier= lambda x=chapter_download_task: self.chapter_task_completion(x)
                             )
                         )
         self.progress.print(f'Successfully Downloaded [red]{n_chapters_to_download}[/] {"chapter" if n_chapters_to_download <= 1 else "chapters"} of [medium_spring_green]{self.series.series_title}[/] in [italic plum2]{os.path.abspath(dest)}[/].')
@@ -132,6 +121,10 @@ class WebtoonDownloader():
     def setup_chapter_task_progress(self, chapter_download_task_id: int, total_images: int):
         self.progress.update(chapter_download_task_id, total=total_images, rendered_total=total_images)
         self.progress.start_task(chapter_download_task_id)
+    
+    def chapter_task_completion(self, chapter_download_task_id: int):
+        time.sleep(2)
+        self.progress.remove_task(chapter_download_task_id)
     
     def progress_chapter_download_task(self, chapter_download_task_id: int, advance: int=1):
         self.progress.update(chapter_download_task_id, advance=advance)
