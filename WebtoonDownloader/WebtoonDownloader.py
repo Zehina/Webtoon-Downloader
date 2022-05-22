@@ -1,25 +1,20 @@
 import concurrent
 import itertools
-from download_details import DownloadSettings
-from dataclasses import dataclass, field
-from typing import List, Union
-from bs4 import BeautifulSoup
-import requests
 import os
 import queue
-from threads.thread_pool import ThreadPoolExecutorWithQueueSizeLimit
-from concurrent.futures import ThreadPoolExecutor
-from threading import Event
+import requests
 import signal
-import shutil
-from PIL import Image
 import sys
-
-@dataclass(order=True)
-class Series:
-    series_url: str
-    series_title: str = ""
-    viewer_url: str = ""
+from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from threading import Event
+from typing import List, Union
+from WebtoonDownloader.classes.tasks.chapter_download_task import download_chapter
+from WebtoonDownloader.classes.threads.ThreadPoolExecutorWithQueueSizeLimit import ThreadPoolExecutorWithQueueSizeLimit
+from WebtoonDownloader.classes.DownloadSettings import DownloadSettings
+from WebtoonDownloader.classes.WebtoonSession import WebtoonSession
+from WebtoonDownloader.classes.Series import Series
 
 @dataclass(order=True, frozen=True)
 class ChapterInfo:
@@ -31,14 +26,11 @@ class ChapterInfo:
     def __post_init__(self):
         object.__setattr__(self, 'sort_index', self.chapter_number)
 
-class WebtoonSession():
-    def __init__(self, series: Series, download_settings: DownloadSettings, log, progress, headers=None):
+class WebtoonDownloader():
+    def __init__(self, series: Series, download_settings: DownloadSettings, log, progress):
         self.download_settings = download_settings
         self.series = series
-        if not headers:
-            user_agent = self.setup_user_agent()
-            self.setup_headers(user_agent)
-        self.setup_session()
+        self.session = WebtoonSession()
         self.log = log
         self.progress = progress
         self.done_event = Event()
@@ -59,7 +51,7 @@ class WebtoonSession():
         downloads all chapters starting from start_chapter until end_chapter, inclusive.
         stores the downloaded chapter into the dest path.
         """
-        r = self.session.get(f'{self.series.series_url}', headers=self.headers)
+        r = self.session.get(f'{self.series.series_url}')
         soup = BeautifulSoup(r.text, 'lxml')
         self.series.viewer_url = self.extract_chapter_viewer_url(soup)
         self.series.series_title = self.extract_series_title(soup)
@@ -93,7 +85,15 @@ class WebtoonSession():
                         chapter_dest = os.path.join(dest, str(chapter_info.chapter_number)) if self.download_settings.separate else dest
                         chapter_download_task = self.progress.add_task(f"[plum2]Chapter {chapter_info.chapter_number}.",  type='Pages', type_color='grey85', number_format='>02d', start=False, rendered_total='??')
                         chapter_download_futures.add(
-                            pool.submit(self.download_chapter, chapter_download_task, chapter_info, chapter_dest)
+                            self.submit_chapter_download_task(
+                                pool, 
+                                chapter_download_task_id=chapter_download_task, 
+                                dest=chapter_dest, 
+                                chapter_info=chapter_info, 
+                                image_extractor= lambda: self.extract_img_urls(data_episode_num=chapter_info.data_episode_no),
+                                progress_notifier= lambda: self.progress_chapter_download_task(chapter_download_task),
+                                setup_progress= lambda total_imgs: self.setup_chapter_task_progress(chapter_download_task, total_imgs),
+                            )
                         )
                     
                 while chapter_download_futures:
@@ -117,37 +117,33 @@ class WebtoonSession():
                         chapter_dest = os.path.join(dest, str(chapter_info.chapter_number)) if self.download_settings.separate else dest
                         chapter_download_task = self.progress.add_task(f"[plum2]Chapter {chapter_info.chapter_number}.", type='Pages', type_color='grey85', number_format='>02d', start=False, rendered_total='??')
                         chapter_download_futures.add(
-                            pool.submit(self.download_chapter, chapter_download_task, chapter_info, chapter_dest)
+                            self.submit_chapter_download_task(
+                                pool, 
+                                chapter_download_task_id=chapter_download_task, 
+                                dest=chapter_dest, 
+                                chapter_info=chapter_info, 
+                                image_extractor= lambda: self.extract_img_urls(data_episode_num=chapter_info.data_episode_no),
+                                progress_notifier= lambda: self.progress_chapter_download_task(chapter_download_task),
+                                setup_progress= lambda total_imgs: self.setup_chapter_task_progress(chapter_download_task, total_imgs),
+                            )
                         )
         self.progress.print(f'Successfully Downloaded [red]{n_chapters_to_download}[/] {"chapter" if n_chapters_to_download <= 1 else "chapters"} of [medium_spring_green]{self.series.series_title}[/] in [italic plum2]{os.path.abspath(dest)}[/].')
 
-    def setup_user_agent(self) -> str:
-        import os
-        if os.name == 'nt':
-            user_agent = ('Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-                               'AppleWebKit/537.36 (KHTML, like Gecko)' 
-                               'Chrome/92.0.4515.107 Safari/537.36')
-        else:
-            user_agent = ('Mozilla/5.0 (X11; Linux ppc64le; rv:75.0)' 
-                               'Gecko/20100101 Firefox/75.0')
-        return user_agent
-
-    def setup_headers(self, user_agent: str) -> None:
-        self.headers = {
-            'dnt': '1',
-            'user-agent': user_agent,
-            'accept-language': 'en-US,en;q=0.9',
-        }
-        self.image_headers = {
-            'referer': 'https://www.webtoons.com/',
-            **self.headers
-        }
-
-    def setup_session(self):
-        self.session = requests.session()
-        self.session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
-        self.session.cookies.set("needCCPA", "FALSE", domain=".webtoons.com")
-        self.session.cookies.set("needCOPPA", "FALSE", domain=".webtoons.com")
+    def setup_chapter_task_progress(self, chapter_download_task_id: int, total_images: int):
+        self.progress.update(chapter_download_task_id, total=total_images, rendered_total=total_images)
+        self.progress.start_task(chapter_download_task_id)
+    
+    def progress_chapter_download_task(self, chapter_download_task_id: int, advance: int=1):
+        self.progress.update(chapter_download_task_id, advance=advance)
+    
+    def submit_chapter_download_task(self, pool, **kwargs):
+        return pool.submit(
+            download_chapter, 
+            logger=self.log,
+            headers= self.session.image_headers,
+            images_format=self.download_settings.images_format,
+            **kwargs
+        )
 
     def extract_chapter_viewer_url(self, html: Union[str, BeautifulSoup]) -> str:
         """
@@ -230,101 +226,6 @@ class WebtoonSession():
         return [url['data-url'] 
             for url 
             in soup.find('div', class_='viewer_img _img_viewer_area').find_all('img')]
-
-    def download_image(self, chapter_download_task_id: int, url: str, dest: str, chapter_number: Union[str, int], page_number: Union[str, int], image_format:str='jpg'):
-        """
-        downloads an image using a direct url into the base path folder.
-
-        Arguments:
-        ----------
-        chapter_download_task_id: int
-            task of calling chapter download task
-
-        url: str
-            image direct link.
-
-        dest: str
-            folder path where to save the downloaded image.
-        
-        chapter_number: str | int
-            chapter number used for naming the saved image file.
-
-        page_number: str | int
-            page number used for naming the saved image file.
-
-        image_format: str
-            format of downloaded image .
-            (default: jpg)
-        """
-        self.log.debug(f"Requesting chapter {chapter_number}: page {page_number}")
-        r = requests.get(url, headers=self.image_headers, stream=True)
-        self.progress.update(chapter_download_task_id, advance=1)
-        if r.status_code == 200:
-            r.raw.decode_content = True
-            file_name = f'{chapter_number}_{page_number}'
-            final_file_name = ''
-            if(image_format == 'png'):
-                final_file_name = os.path.join(dest, f'{file_name}.png')
-                Image.open(r.raw).save(final_file_name)
-            else:
-                final_file_name = os.path.join(dest, f'{file_name}.jpg')
-                with open(final_file_name, 'wb') as f:
-                    shutil.copyfileobj(r.raw, f)
-
-            return final_file_name
-        else:
-            log.error(f'[bold red blink]Unable to download page[/] [medium_spring_green]{page_number}[/]' 
-                    f'from chapter [medium_spring_green]{chapter_number}[/], request returned' 
-                    f'error [bold red blink]{r.status_code}[/]')
-
-    def download_chapter(self, chapter_download_task_id: int, chapter_info: ChapterInfo, dest: str, images_format: str='jpg', compress_cbz=False):
-        """
-        downloads pages starting of a given chapter, inclusive.
-        stores the downloaded images into the dest path.
-
-        Arguments:
-        ----------
-        chapter_download_task_id: int
-            task of calling chapter download task
-        
-        chapter_number: int
-            chapter to download
-        
-        dest: str
-            destination folder path to store the downloaded image files.
-            (default: current working directory)
-        """
-        
-        self.log.debug(f'[italic red]Accessing[/italic red] chapter {chapter_info}')
-        img_urls = self.extract_img_urls(
-                data_episode_num = chapter_info.data_episode_no
-            )
-        if not os.path.exists(dest):
-            os.makedirs(dest)
-        self.progress.update(chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls))
-        self.progress.start_task(chapter_download_task_id)
-        with ThreadPoolExecutorWithQueueSizeLimit(maxsize=10, max_workers=4) as pool:
-            image_download_futures = set()
-            for page_number, url in enumerate(img_urls):
-                image_download_futures.add(
-                    pool.submit(self.download_image, chapter_download_task_id, url, dest, chapter_info.chapter_number, page_number, image_format=images_format)
-                )
-                if self.done_event.is_set():
-                    return
-
-            concurrent.futures.wait(image_download_futures, return_when=concurrent.futures.ALL_COMPLETED)
-            for future in image_download_futures:
-                try:
-                    future.result()
-                except BaseException as e:
-                    raise e
-            # if compress_cbz:
-            #     self.log.info('cbz enabled')
-            #     with zipfile.ZipFile(f'{dest}.cbz', 'w') as cbz_zip:
-            #         for future in image_download_futures:
-            #             image_file_path = future.result()
-            #             image_folder, image_file_name = os.path.split(image_file_path)
-            #             cbz_zip.write(image_file_path, compress_type=zipfile.ZIP_STORED, arcname=image_file_name)
 
         self.log.info(f'Chapter {chapter_info.chapter_number} download complete with a total of {len(img_urls)} pages [green]✓')
         self.progress.remove_task(chapter_download_task_id)
