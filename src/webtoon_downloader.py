@@ -191,6 +191,8 @@ def get_chapters_details(session: requests.session, viewer_url: str, start_chapt
     (list[ChapterInfo]): list of all chapter details extracted.
     """
     r = session.get(f'{viewer_url}&episode_no=1')
+    if r.status_code == 404:
+        r = session.get(f'{viewer_url}&episode_no=2')
     soup = BeautifulSoup(r.text, 'lxml')
     chapter_details = [
         ChapterInfo(
