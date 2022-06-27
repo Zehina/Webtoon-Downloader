@@ -1,6 +1,7 @@
 import concurrent
 import itertools
 import logging
+import math
 import requests
 import rich
 import os
@@ -249,6 +250,9 @@ def download_image(chapter_download_task_id: int, url: str, dest: str, chapter_n
 
     page_number: str | int
         page number used for naming the saved image file.
+        
+    zeros: int
+        Number of padding digits used for naming the saved image file.
 
     image_format: str
         format of downloaded image .
@@ -298,6 +302,9 @@ def download_chapter(chapter_download_task_id: int, session: requests.Session, v
     
     chapter_number: int
         chapter to download
+        
+    zeros: int
+        Number of padding digits used for naming the saved image file.
     
     dest:
         destination folder path to store the downloaded image files.
