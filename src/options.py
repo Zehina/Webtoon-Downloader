@@ -16,6 +16,16 @@ class MutuallyExclusiveArgumentsError(Exception):
         super().__init__(self.message)
     pass
 
+class DependentArgumentsError(Exception):
+    '''Exception raised when an argument is dependent on another arguments'''
+    
+    def __init__(self, arg1, arg2):
+        self.arg1 = arg1
+        self.arg2 = arg2
+        self.message = f"Argument {arg1} is dependent on {arg2}"
+        super().__init__(self.message)
+    pass
+
 class Options():
     def __init__(self, description='Webtoon Downloader', console = Console()):
         self.parser = ArgumentParser()
@@ -78,6 +88,9 @@ class Options():
         elif (self.args.start and self.args.latest) or (self.args.end and self.args.latest):
             self.parser.print_help()
             raise MutuallyExclusiveArgumentsError(['-s','--start', '-e', '--end'], ['-l', '--latest'])
+        elif (self.args.cbz and not self.args.separate):
+            self.parser.print_help()
+            raise DependentArgumentsError('--cbz', '--separate')
         return self.args
 
 class ArgumentParser(argparse.ArgumentParser):
