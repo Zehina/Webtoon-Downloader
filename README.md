@@ -133,6 +133,30 @@ For example, downloading Tower of God, Chapter 150 would result in the following
             │...
     ```
 
+* In order to use chapter names instead of chapter numbers for separate folders, pass the ```--chapter-name``` argument along with ```--separate```.
+    ```ps
+    $ python webtoon_downloader.py [url] --separate --chapter-name
+    ```
+For example, downloading Tower of God, Chapter 150 to 152 with this option would result in the following:
+    ```ps
+    Tower_of_God
+        │[Season 2] Ep. 70
+            │--150_001.jpg
+            │--150_002.jpg
+            │--150_003.jpg
+            │...
+        │[Season 2] Ep. 71
+            │--151_001.jpg
+            │--151_002.jpg
+            │--151_003.jpg
+            │...
+        │[Season 2] Ep. 72
+            │--152_001.jpg
+            │--152_002.jpg
+            │--152_003.jpg
+            │...
+    ```
+
 For more details on positional arguments, please use the ```-h ``` or ```--help``` argument:
 ```console
 py webtoon_downloader.py --help
