@@ -50,6 +50,9 @@ class Options():
         self.parser.add_argument('--separate', required=False,
                             help='download each chapter in seperate folders',
                             action='store_true', default=False)
+        self.parser.add_argument('--chapter-name', required=False,
+                            help='use the chapter title for the separate folder names',
+                            action='store_true', default=False)
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
                             'more help details'), required=False, action='store_true')
         self.parser._positionals.title = "commands"
