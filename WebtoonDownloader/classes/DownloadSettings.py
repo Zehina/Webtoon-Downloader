@@ -6,6 +6,7 @@ class DownloadSettings:
     end: int
     dest: str
     max_concurrent: int
+    max_downloader_workers: int
     images_format: str = 'jpg'
     latest: bool = False
     separate: bool = False

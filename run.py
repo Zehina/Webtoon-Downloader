@@ -8,8 +8,10 @@ from WebtoonDownloader.classes.DownloadSettings import DownloadSettings
 from WebtoonDownloader.classes.progress.DownloadProgress import DownloadProgress
 from WebtoonDownloader.classes.Series import Series
 
-n_concurrent_chapters_download = 2
-logger.configure_logger("DEBUG")
+n_concurrent_chapters_download = 10
+n_concurrent_images_download = 50
+
+logger.configure_logger("INFO")
 log = logging.getLogger(__name__)
 
 def main():
@@ -18,7 +20,7 @@ def main():
     try:
         args = parser.parse()
     except Exception as e:
-        console.print(f'[red]Error:[/] {e}')
+        log.error(f'[red]Error:[/] {e}')
         return -1
     if args.readme:
         parent_path = pathlib.Path(__file__).parent.parent.resolve()     
@@ -29,9 +31,8 @@ def main():
     series_url = args.url
     separate = args.seperate or args.separate
     compress_cbz = args.cbz and separate
-    progress = DownloadProgress()
     webtoon_downloader = WebtoonDownloader(
-        series= Series(series_url), 
+        series= Series("https://www.webtoons.com/en/slice-of-life/hello-world/list?title_no=827"), 
         download_settings= DownloadSettings(
             start=args.start,
             end=args.end,
@@ -40,12 +41,29 @@ def main():
             latest=args.latest,
             separate=separate,
             compress=compress_cbz,
-            max_concurrent=n_concurrent_chapters_download
+            max_concurrent=n_concurrent_chapters_download,
+            max_downloader_workers=n_concurrent_images_download
         ),
         log=log,
-        progress = progress
+        progress = DownloadProgress()
     )
+    # webtoon_downloader2 = WebtoonDownloader(
+    #     series= Series("https://www.webtoons.com/en/action/omniscient-reader/list?title_no=2154"), 
+    #     download_settings= DownloadSettings(
+    #         start=args.start,
+    #         end=args.end,
+    #         dest=args.dest,
+    #         images_format=args.images_format,
+    #         latest=args.latest,
+    #         separate=separate,
+    #         compress=compress_cbz,
+    #         max_concurrent=n_concurrent_chapters_download
+    #     ),
+    #     log=log,
+    #     progress = DownloadProgress()
+    # )
     webtoon_downloader.download()
+    #webtoon_downloader2.download()
 
 if(__name__ == '__main__'):
     main()
