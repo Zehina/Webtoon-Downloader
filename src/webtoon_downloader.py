@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from logging.handlers import RotatingFileHandler
 from threading import Event
 from typing import List, Union
+from urllib.parse import parse_qs, urlparse
 
 import requests
 import rich
@@ -112,31 +113,36 @@ progress = Progress(
 )
 ######################## Log Configuration ################################
 console = Console()
-traceback.install(console=console, show_locals=True)
+traceback.install(console=console, show_locals=False)
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+# create logger
 log = logging.getLogger(__name__)
-FILE_FORMAT = "%(asctime)s - %(name)-15s - %(levelname)-8s - %(filename)s - %(lineno)d - %(message)s"  # added filename and lineno
-CLI_FORMAT = "%(message)s"
-LOG_FILENAME = "webtoon_downloader.log"
-file_handler = RotatingFileHandler(LOG_FILENAME, maxBytes=10000, backupCount=10)
-file_handler.setFormatter(logging.Formatter(FILE_FORMAT))
-file_handler.setLevel(logging.DEBUG)
+log.setLevel(logging.DEBUG)  # set log level
 
-logging.basicConfig(
-    level="WARNING",
-    format=CLI_FORMAT,
-    datefmt="[%X]",
-    handlers=[
-        file_handler,
-        RichHandler(
-            console=progress.console,
-            rich_tracebacks=True,
-            tracebacks_show_locals=True,
-            markup=True,
-        ),
-    ],
+# create formatter
+CLI_FORMAT = "%(message)s"
+FILE_FORMAT = "%(asctime)s - %(levelname)-8s - %(message)s - %(filename)s - %(lineno)d - %(name)s"  # rearranged
+
+# create file handler
+LOG_FILENAME = "webtoon_downloader.log"
+file_handler = RotatingFileHandler(
+    LOG_FILENAME, maxBytes=1000000, backupCount=10, encoding="utf-8"
 )
-###########################################################################
+file_handler.setLevel(logging.DEBUG)
+file_handler.setFormatter(logging.Formatter(FILE_FORMAT))
+
+console_handler = RichHandler(
+    level=logging.WARNING,
+    console=console,
+    rich_tracebacks=True,
+    tracebacks_show_locals=False,
+    markup=True,
+)
+console_handler.setLevel(logging.WARNING)
+console_handler.setFormatter(logging.Formatter(CLI_FORMAT))
+log.addHandler(file_handler)
+log.addHandler(console_handler)
+##################################################################
 
 done_event = Event()
 N_CONCURRENT_CHAPTERS_DOWNLOAD = 4
@@ -195,21 +201,48 @@ def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
             .find("a")["href"]
             .split("&")[0]
         )
-    elif isinstance(html, BeautifulSoup):
+
+    if isinstance(html, BeautifulSoup):
         return (
             html.find("li", attrs={"data-episode-no": True})
             .find("a")["href"]
             .split("&")[0]
         )
-    else:
-        raise TypeError(
-            "variable passed is neither a string nor a BeautifulSoup object"
+
+    raise TypeError("variable passed is neither a string nor a BeautifulSoup object")
+
+
+def get_first_chapter_episode_no(session: requests.session, series_url: str) -> int:
+    """
+    Fetches the 'episode_no' field that is used in a Webtoon's viewer. Most series should start with episode 1
+    but some start at 2, and others might even be 80+.
+
+    Args:
+        session: The session with which to send HTTP requests.
+        series_url: The URL of the Webtoon series.
+
+    Returns:
+       The episode number of the first chapter of the Webtoon series.
+    """
+
+    try:
+        # First attempt to fetch the episode_no
+        soup = BeautifulSoup(session.get(series_url).text, "html.parser")
+        href = soup.find("a", id="_btnEpisode")["href"]
+        return int(parse_qs(urlparse(href).query)["episode_no"][0])
+    except (TypeError, KeyError):
+        # If the second attempt fails, try to get the first episode from the list
+        soup = BeautifulSoup(session.get(f"{series_url}&page=9999").text, "html.parser")
+        return min(
+            int(episode["data-episode-no"])
+            for episode in soup.find_all("li", {"class": "_episodeItem"})
         )
 
 
 def get_chapters_details(
     session: requests.session,
     viewer_url: str,
+    series_url: str,
     start_chapter: int = 1,
     end_chapter: int = None,
 ) -> List[ChapterInfo]:
@@ -236,10 +269,10 @@ def get_chapters_details(
     ----------
     (list[ChapterInfo]): list of all chapter details extracted.
     """
-    resp = session.get(f"{viewer_url}&episode_no=1")
-    if resp.status_code == 404:
-        resp = session.get(f"{viewer_url}&episode_no=2")
-
+    first_chapter = get_first_chapter_episode_no(session, series_url)
+    episode_url = f"{viewer_url}&episode_no={first_chapter}"
+    log.info("Sending request to '%s'", episode_url)
+    resp = session.get(episode_url)
     soup = BeautifulSoup(resp.text, "lxml")
     chapter_details = [
         ChapterInfo(
@@ -390,7 +423,9 @@ def download_chapter(
         destination folder path to store the downloaded image files.
         (default: current working directory)
     """
-    log.debug("[italic red]Accessing[/italic red] chapter %d", chapter_info)
+    log.debug(
+        "[italic red]Accessing[/italic red] chapter %d", chapter_info.chapter_number
+    )
     img_urls = get_img_urls(
         session=session,
         viewer_url=viewer_url,
@@ -416,6 +451,7 @@ def download_chapter(
             )
             if done_event.is_set():
                 return
+
     log.info(
         "Chapter %d download complete with a total of %d pages [green]✓",
         chapter_info.chapter_number,
@@ -464,8 +500,8 @@ def download_webtoon(
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
     session.cookies.set("needCCPA", "FALSE", domain=".webtoons.com")
     session.cookies.set("needCOPPA", "FALSE", domain=".webtoons.com")
-    r = session.get(f"{series_url}", headers=headers)
-    soup = BeautifulSoup(r.text, "lxml")
+    resp = session.get(series_url, headers=headers)
+    soup = BeautifulSoup(resp.text, "lxml")
     viewer_url = get_chapter_viewer_url(soup)
     series_title = get_series_title(series_url, soup)
     if not (dest):
@@ -483,11 +519,13 @@ def download_webtoon(
     )
     with progress:
         if download_latest_chapter:
-            chapters_to_download = [get_chapters_details(session, viewer_url)[-1]]
+            chapters_to_download = [
+                get_chapters_details(session, viewer_url, series_url)[-1]
+            ]
 
         else:
             chapters_to_download = get_chapters_details(
-                session, viewer_url, start_chapter, end_chapter
+                session, viewer_url, series_url, start_chapter, end_chapter
             )
 
         start_chapter, end_chapter = (
@@ -608,15 +646,19 @@ def main():
             return
     series_url = args.url
     separate = args.seperate or args.separate
-    download_webtoon(
-        series_url,
-        args.start,
-        args.end,
-        args.dest,
-        args.images_format,
-        args.latest,
-        separate,
-    )
+    try:
+        download_webtoon(
+            series_url,
+            args.start,
+            args.end,
+            args.dest,
+            args.images_format,
+            args.latest,
+            separate,
+        )
+    except Exception as exc:
+        log.exception(exc)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
