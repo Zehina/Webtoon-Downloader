@@ -112,6 +112,7 @@ progress = Progress(
     refresh_per_second=20,
 )
 ######################## Log Configuration ################################
+sys.stdout.reconfigure(encoding="utf-8")
 console = Console()
 traceback.install(console=console, show_locals=False)
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
