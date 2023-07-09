@@ -5,6 +5,7 @@ import math
 import os
 import pathlib
 import queue
+import re
 import shutil
 import signal
 import sys
@@ -172,14 +173,14 @@ def get_series_title(series_url: str, html: Union[str, BeautifulSoup]) -> str:
         title_html_element = "h1"
 
     if isinstance(html, str):
-        series_title = BeautifulSoup(html).find(title_html_element, class_="subj").text
+        series_title = BeautifulSoup(html).find(title_html_element, class_="subj")
     elif isinstance(html, BeautifulSoup):
-        series_title = html.find(title_html_element, class_="subj").text
+        series_title = html.find(title_html_element, class_="subj")
     else:
         raise TypeError(
             "variable passed is neither a string nor a BeautifulSoup object"
         )
-    return series_title.replace("\n", "").replace("\t", "")
+    return series_title.get_text(separator=" ").replace("\n", "").replace("\t", "")
 
 
 def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
@@ -461,6 +462,21 @@ def download_chapter(
     progress.remove_task(chapter_download_task_id)
 
 
+def slugify_file_name(file_name: str) -> str:
+    """
+    Slugifies a file name by removing special characters, replacing spaces with underscores.
+    Args:
+        file_name: The original file name.
+
+    Returns:
+        str: The slugified file name.
+
+    """
+    # Replace leading/trailing whitespace and replace spaces with underscores
+    # And remove special characters
+    return re.sub(r"[^\w.-]", "", file_name.strip().replace(" ", "_"))
+
+
 def download_webtoon(
     series_url: str,
     start_chapter: int,
@@ -506,9 +522,7 @@ def download_webtoon(
     viewer_url = get_chapter_viewer_url(soup)
     series_title = get_series_title(series_url, soup)
     if not (dest):
-        dest = series_title.replace(
-            " ", "_"
-        )  # uses title name of series as folder name if dest is None
+        dest = slugify_file_name(series_title)
     if not os.path.exists(dest):
         log.warning("Creading Directory: [#80BBA6]%s[/]", dest)
         os.makedirs(dest)  # creates directory and sub-dirs if dest path does not exist
