@@ -150,37 +150,23 @@ done_event = Event()
 N_CONCURRENT_CHAPTERS_DOWNLOAD = 4
 
 
-def get_series_title(series_url: str, html: Union[str, BeautifulSoup]) -> str:
+def get_series_title(html: Union[str, BeautifulSoup]) -> str:
     """
     Extracts the full title series from the html of the scraped url.
 
     Arguments:
     ----------
-
-    series_url: str
-        url of the series to scrap from the webtoons.com website
-        series title are grabbed differently for webtoons of the challenge category
-    html : str | BeautifulSoup
-        the html body of the scraped series url, passed either as a raw string or a bs4.BeautifulSoup object
+    series_url  : url of the series to scrap from the webtoons.com website \
+                  series title are grabbed differently for webtoons of the challenge category
+    html        : the html body of the scraped series url, passed either as a raw string or a bs4.BeautifulSoup object
 
     Returns:
     ----------
-    (str): The full title of the series.
+        The full title of the series.
     """
-    if "challenge" in series_url.lower().split("/"):
-        title_html_element = "h3"
-    else:
-        title_html_element = "h1"
-
-    if isinstance(html, str):
-        series_title = BeautifulSoup(html).find(title_html_element, class_="subj")
-    elif isinstance(html, BeautifulSoup):
-        series_title = html.find(title_html_element, class_="subj")
-    else:
-        raise TypeError(
-            "variable passed is neither a string nor a BeautifulSoup object"
-        )
-    return series_title.get_text(separator=" ").replace("\n", "").replace("\t", "")
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    series_title = _html.find(class_="subj").get_text(separator=" ").replace("\n", "").replace("\t", "")
+    return series_title
 
 
 def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
@@ -520,7 +506,7 @@ def download_webtoon(
     resp = session.get(series_url, headers=headers)
     soup = BeautifulSoup(resp.text, "lxml")
     viewer_url = get_chapter_viewer_url(soup)
-    series_title = get_series_title(series_url, soup)
+    series_title = get_series_title(soup)
     if not (dest):
         dest = slugify_file_name(series_title)
     if not os.path.exists(dest):
