@@ -55,8 +55,13 @@ class Options():
         self.parser._positionals.title = "commands"
 
     def print_readme(self):
-        parent_path = pathlib.Path(__file__).parent.parent.resolve()     
-        with open(os.path.join(parent_path, "README.md")) as readme:
+        script_dir = pathlib.Path(__file__).parent
+        # Path as for an installed module
+        readme_path = script_dir.joinpath('data', 'README.md').resolve()
+        if not os.path.exists(readme_path):
+            # Fallback if executed from project-directory
+            readme_path = script_dir.parent.joinpath('README.md').resolve()
+        with open(readme_path) as readme:
             markdown = Markdown(readme.read())
             self.console.print(markdown)
             return
