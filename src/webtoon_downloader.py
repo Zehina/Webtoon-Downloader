@@ -169,6 +169,64 @@ def get_series_title(html: Union[str, BeautifulSoup]) -> str:
     return series_title
 
 
+def get_series_summary(html: Union[str, BeautifulSoup]) -> str:
+    """
+    Extracts the series summary from the html of the series overview page.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped series overview page, passed either as a raw
+           string or a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+        The series summary
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    return _html.find(class_="summary").get_text(separator=" ").replace("\n", "").replace("\t", "")
+
+
+def get_chapter_title(html: Union[str, BeautifulSoup]) -> str:
+    """
+    Extracts the chapter title from the html of the chapter.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped chapter, passed either as a raw string or
+           a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+        The chapter title
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    return _html.find("h1").get_text().strip()
+
+
+def get_chapter_notes(html: Union[str, BeautifulSoup]) -> str:
+    """
+    Extracts the chapter author notes from the html of the chapter.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped chapter, passed either as a raw string or
+           a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+        The chapter notes
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    node = _html.find(class_="author_text")
+    if node is None:
+        return ""
+    else:
+        return node.get_text().strip().replace("\r\n", "\n")
+
+
 def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
     """
     Extracts the url of the webtoon chapter reader related to the series given in the series url.
@@ -277,6 +335,51 @@ def get_chapters_details(
     return chapter_details[int(start_chapter or 1) - 1 : end_chapter]
 
 
+def get_chapter_html(
+    session: requests.session, viewer_url: str, data_episode_num: int
+) -> str:
+    """
+    Download the HTML source of a chapter.
+
+    Arguments:
+    ----------
+    session: requests.session
+        the requests session object for persistent parameters.
+
+    viewer_url: str
+        chapter reader url of the series.
+
+    data_episode_num: int
+        chapter number to scrap image urls from.
+
+    Returns:
+    ----------
+        complete HTML source
+    """
+    return session.get(f"{viewer_url}&episode_no={data_episode_num}").text
+
+
+def extract_img_urls(html: Union[str, BeautifulSoup]) -> list:
+    """
+    Extract the image URLs from the chapters HTML document.
+
+    Arguments:
+    ----------
+    html : the html body of the chapter, passed either as a raw string or a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+    (list[str]): list of all image urls extracted from the chapter.
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html, "lxml")
+    return [
+        url["data-url"]
+        for url in _html.find("div", class_="viewer_img _img_viewer_area").find_all(
+            "img"
+        )
+    ]
+
+
 def get_img_urls(
     session: requests.session, viewer_url: str, data_episode_num: int
 ) -> list:
@@ -298,14 +401,7 @@ def get_img_urls(
     ----------
     (list[str]): list of all image urls extracted from the chapter.
     """
-    resp = session.get(f"{viewer_url}&episode_no={data_episode_num}")
-    soup = BeautifulSoup(resp.text, "lxml")
-    return [
-        url["data-url"]
-        for url in soup.find("div", class_="viewer_img _img_viewer_area").find_all(
-            "img"
-        )
-    ]
+    return extract_img_urls(get_chapter_html(session, viewer_url, data_episode_num))
 
 
 def download_image(
@@ -385,6 +481,7 @@ def download_chapter(
     dest: str,
     zeros: int,
     images_format: str = "jpg",
+    export_texts: bool = False,
 ):
     """
     downloads pages starting of a given chapter, inclusive.
@@ -410,17 +507,24 @@ def download_chapter(
     dest:
         destination folder path to store the downloaded image files.
         (default: current working directory)
+
+    export_texts: bool
+        export the chapter title and the author notes into text files.
     """
     log.debug(
         "[italic red]Accessing[/italic red] chapter %d", chapter_info.chapter_number
     )
-    img_urls = get_img_urls(
-        session=session,
-        viewer_url=viewer_url,
-        data_episode_num=chapter_info.data_episode_no,
-    )
+    html = get_chapter_html(session, viewer_url, chapter_info.data_episode_no)
+    soup = BeautifulSoup(html, "lxml")
+    img_urls = extract_img_urls(soup)
     if not os.path.exists(dest):
         os.makedirs(dest)
+    if export_texts:
+        prefix = os.path.join(dest, f"{chapter_info.chapter_number:0{zeros}d}_")
+        with open(prefix + "title.txt", "w") as f:
+            f.write(get_chapter_title(soup) + '\n')
+        with open(prefix + "notes.txt", "w") as f:
+            f.write(get_chapter_notes(soup) + '\n')
     progress.update(
         chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls)
     )
@@ -463,14 +567,36 @@ def slugify_file_name(file_name: str) -> str:
     return re.sub(r"[^\w.-]", "", file_name.strip().replace(" ", "_"))
 
 
+def get_chapter_dir(
+    chapter_info: ChapterInfo,
+    zeros: int,
+    separate_chapters: bool
+) -> str:
+    """
+    Get the relative directory to use for a chapter, given the supplied options.
+
+    Arguments:
+        chapter_info:      Information about this chapter
+        zeros:             Number of digits to use for the chapter-number
+        separate_chapters: Selector if each chapter should be its own directory
+
+    Returns:
+        Relative directory for files in chapter
+    """
+    if not separate_chapters:
+        return '.'
+    return f"{chapter_info.chapter_number:0{zeros}d}"
+
+
 def download_webtoon(
     series_url: str,
     start_chapter: int,
     end_chapter: int,
     dest: str,
     images_format: str = "jpg",
-    download_latest_chapter=False,
-    separate_chapters=False,
+    download_latest_chapter: bool = False,
+    separate_chapters: bool = False,
+    export_texts: bool = False,
 ):
     """
     downloads all chapters starting from start_chapter until end_chapter, inclusive.
@@ -498,6 +624,10 @@ def download_webtoon(
     separate_chapters: bool
         separate downloaded chapters in their own folder under the dest path if true,
         else stores all images in the dest folder.
+
+    export_texts: bool
+        export the series summary, the chapter titles and the author notes into
+        text files.
     """
     session = requests.session()
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
@@ -514,6 +644,10 @@ def download_webtoon(
         os.makedirs(dest)  # creates directory and sub-dirs if dest path does not exist
     else:
         log.warning("Directory Exists: [#80BBA6]%s[/]", dest)
+    if export_texts:
+        summary = get_series_summary(soup)
+        with open(os.path.join(dest, "summary.txt"), "w") as f:
+                f.write(summary + '\n')
 
     progress.console.print(
         f"Downloading [italic medium_spring_green]{series_title}[/] from {series_url}"
@@ -559,11 +693,8 @@ def download_webtoon(
             for chapter_info in itertools.islice(
                 chapters_to_download, N_CONCURRENT_CHAPTERS_DOWNLOAD
             ):
-                chapter_dest = (
-                    os.path.join(dest, f"{chapter_info.chapter_number:0{zeros}d}")
-                    if separate_chapters
-                    else dest
-                )
+                chapter_dest = os.path.join(dest, get_chapter_dir(
+                    chapter_info, zeros, separate_chapters))
                 chapter_download_task = progress.add_task(
                     f"[plum2]Chapter {chapter_info.chapter_number}.",
                     type="Pages",
@@ -582,6 +713,7 @@ def download_webtoon(
                         chapter_dest,
                         zeros,
                         images_format,
+                        export_texts,
                     )
                 )
 
@@ -599,11 +731,8 @@ def download_webtoon(
 
                 # Scheduling the next set of futures.
                 for chapter_info in itertools.islice(chapters_to_download, len(done)):
-                    chapter_dest = (
-                        os.path.join(dest, f"{chapter_info.chapter_number:0{zeros}d}")
-                        if separate_chapters
-                        else dest
-                    )
+                    chapter_dest = os.path.join(dest, get_chapter_dir(
+                        chapter_info, zeros, separate_chapters))
                     chapter_download_task = progress.add_task(
                         f"[plum2]Chapter {chapter_info.chapter_number}.",
                         type="Pages",
@@ -622,6 +751,7 @@ def download_webtoon(
                             chapter_dest,
                             zeros,
                             images_format,
+                            export_texts,
                         )
                     )
 
@@ -656,6 +786,7 @@ def main():
             args.images_format,
             args.latest,
             separate,
+            args.export_texts,
         )
     except Exception as exc:
         log.exception(exc)
