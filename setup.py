@@ -34,6 +34,11 @@ setup(
     },
     python_requires='>=3.7, <4',
     install_requires=['requests>=2.26.0', 'beautifulsoup4>=4.10.0', 'rich>=10.10.0', 'Pillow>=8.3.1', 'lxml>=4.6.3'],
+    entry_points={
+        'console_scripts': [
+            'webtoon-downloader = Webtoon_Downloader.webtoon_downloader:main',
+        ],
+    },
     project_urls={
         'Bug Reports': 'https://github.com/Zehina/Webtoon-Downloader/issues',
         'Source': 'https://github.com/Zehina/Webtoon-Downloader/',
