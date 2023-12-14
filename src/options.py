@@ -50,6 +50,10 @@ class Options():
         self.parser.add_argument('--separate', required=False,
                             help='download each chapter in separate folders',
                             action='store_true', default=False)
+        self.parser.add_argument('--export-texts', required=False,
+                            help=('export series summary, chapter name and author '
+                                  'texts into additional text files'),
+                            action='store_true', default=False)
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
                             'more help details'), required=False, action='store_true')
         self.parser._positionals.title = "commands"
