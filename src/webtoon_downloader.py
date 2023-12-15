@@ -316,6 +316,7 @@ def download_image(
     page_number: int,
     zeros: int,
     image_format: str = "jpg",
+    page_digits: int = 1,
 ):
     """
     downloads an image using a direct url into the base path folder.
@@ -338,18 +339,21 @@ def download_image(
         page number used for naming the saved image file.
 
     zeros: int
-        Number of padding digits used for naming the saved image file.
+        Number of digits used for the chapter number
 
     image_format: str
         format of downloaded image .
         (default: jpg)
+
+    page_digits: int
+        Number of digits used for the page number inside the chapter
     """
     log.debug("Requesting chapter %d: page %d", chapter_number, page_number)
     resp = requests.get(url, headers=image_headers, stream=True, timeout=5)
     progress.update(chapter_download_task_id, advance=1)
     if resp.status_code == 200:
         resp.raw.decode_content = True
-        file_name = f"{chapter_number:0{zeros}d}_{page_number}"
+        file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
         if image_format == "png":
             Image.open(resp.raw).save(os.path.join(dest, f"{file_name}.png"))
         else:
@@ -425,6 +429,7 @@ def download_chapter(
         chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls)
     )
     progress.start_task(chapter_download_task_id)
+    page_digits = int(math.log10(len(img_urls) - 1)) + 1 if len(img_urls) > 1 else 1
     with ThreadPoolExecutorWithQueueSizeLimit(maxsize=10, max_workers=4) as pool:
         for page_number, url in enumerate(img_urls):
             pool.submit(
@@ -436,6 +441,7 @@ def download_chapter(
                 page_number,
                 zeros,
                 image_format=images_format,
+                page_digits=page_digits,
             )
             if done_event.is_set():
                 return
