@@ -51,9 +51,12 @@ class Options():
                             help='download each chapter in separate folders',
                             action='store_true', default=False)
         self.parser.add_argument('--export-texts', required=False,
-                            help=('export series summary, chapter name and author '
-                                  'texts into additional text files'),
+                            help=('export texts like series summary, chapter name or author '
+                                  'notes into additional files'),
                             action='store_true', default=False)
+        self.parser.add_argument('--export-format', required=False,
+                            help='format to store exported texts in, available: (all, json, text)',
+                            choices=['all', 'json', 'text'], default='json')
         self.parser.add_argument('--readme', '-r', help=('displays readme file content for '
                             'more help details'), required=False, action='store_true')
         self.parser._positionals.title = "commands"

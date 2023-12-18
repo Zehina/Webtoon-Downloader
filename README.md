@@ -134,8 +134,9 @@ For example, downloading Tower of God, Chapter 150 would result in the following
     ```
 
 * You can additionally export the summary, chapter-title and author-notes into text files.
+You can select the format for the output as either JSON (default) or plain text files or both.
     ```ps
-    $ webtoon-downloader [url] --export-texts
+    $ webtoon-downloader [url] --export-texts [--export-format <json|text|all>]
     ```
 
 For more details on positional arguments, please use the ```-h ``` or ```--help``` argument:
