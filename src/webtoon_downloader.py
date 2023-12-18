@@ -1,5 +1,6 @@
 import concurrent
 import itertools
+import json
 import logging
 import math
 import os
@@ -73,6 +74,49 @@ class CustomTransferSpeedColumn(ProgressColumn):
             style="progress.data.speed",
             justify="center",
         )
+
+
+class TextExporter:
+    """Writes text elements to files, either to multiple plain text files
+    or to a single JSON file, depending on selected export format."""
+
+    def __init__(self, export_format: str):
+        self.data = { 'chapters': {} }
+        self.write_json = export_format in ["json", "all"]
+        self.write_text = export_format in ["text", "all"]
+
+    def set_chapter_config(self, zeros: int, separate: bool):
+        self.separate = separate
+        self.zeros = zeros
+
+    def set_dest(self, dest: str):
+        self.dest = dest
+
+    def add_series_texts(self, summary: str):
+        self.data['summary'] = summary
+        if self.write_text:
+            with open(os.path.join(self.dest, "summary.txt"), "w") as f:
+                f.write(summary + '\n')
+
+    def add_chapter_texts(self, chapter: int, title: str, notes: str):
+        self.data['chapters'][chapter] = { 'title': title }
+        if notes is not None:
+            self.data['chapters'][chapter]['notes'] = notes
+        if self.write_text:
+            prefix = self.dest
+            if self.separate:
+                prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}")
+            prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}_")
+            with open(prefix + "title.txt", "w") as f:
+                f.write(title + '\n')
+            if notes is not None:
+                with open(prefix + "notes.txt", "w") as f:
+                    f.write(notes + '\n')
+
+    def write_data(self):
+        if self.write_json:
+            with open(os.path.join(self.dest, "info.json"), "w") as f:
+                json.dump(self.data, f, sort_keys=True)
 
 
 ######################## Header Configuration ################################
@@ -217,12 +261,12 @@ def get_chapter_notes(html: Union[str, BeautifulSoup]) -> str:
 
     Returns:
     --------
-        The chapter notes
+        The chapter notes or None if not available
     """
     _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
     node = _html.find(class_="author_text")
     if node is None:
-        return ""
+        return None
     else:
         return node.get_text().strip().replace("\r\n", "\n")
 
@@ -481,7 +525,7 @@ def download_chapter(
     dest: str,
     zeros: int,
     images_format: str = "jpg",
-    export_texts: bool = False,
+    exporter: TextExporter = None,
 ):
     """
     downloads pages starting of a given chapter, inclusive.
@@ -508,8 +552,8 @@ def download_chapter(
         destination folder path to store the downloaded image files.
         (default: current working directory)
 
-    export_texts: bool
-        export the chapter title and the author notes into text files.
+    exporter: TextExporter
+        object responsible for exporting any texts, optional
     """
     log.debug(
         "[italic red]Accessing[/italic red] chapter %d", chapter_info.chapter_number
@@ -519,12 +563,11 @@ def download_chapter(
     img_urls = extract_img_urls(soup)
     if not os.path.exists(dest):
         os.makedirs(dest)
-    if export_texts:
-        prefix = os.path.join(dest, f"{chapter_info.chapter_number:0{zeros}d}_")
-        with open(prefix + "title.txt", "w") as f:
-            f.write(get_chapter_title(soup) + '\n')
-        with open(prefix + "notes.txt", "w") as f:
-            f.write(get_chapter_notes(soup) + '\n')
+    if exporter:
+        exporter.add_chapter_texts(
+                chapter=chapter_info.chapter_number,
+                title=get_chapter_title(soup),
+                notes=get_chapter_notes(soup))
     progress.update(
         chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls)
     )
@@ -596,7 +639,7 @@ def download_webtoon(
     images_format: str = "jpg",
     download_latest_chapter: bool = False,
     separate_chapters: bool = False,
-    export_texts: bool = False,
+    exporter: TextExporter = None,
 ):
     """
     downloads all chapters starting from start_chapter until end_chapter, inclusive.
@@ -625,9 +668,8 @@ def download_webtoon(
         separate downloaded chapters in their own folder under the dest path if true,
         else stores all images in the dest folder.
 
-    export_texts: bool
-        export the series summary, the chapter titles and the author notes into
-        text files.
+    exporter: TextExporter
+        object responsible for exporting any texts, optional
     """
     session = requests.session()
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
@@ -644,10 +686,9 @@ def download_webtoon(
         os.makedirs(dest)  # creates directory and sub-dirs if dest path does not exist
     else:
         log.warning("Directory Exists: [#80BBA6]%s[/]", dest)
-    if export_texts:
-        summary = get_series_summary(soup)
-        with open(os.path.join(dest, "summary.txt"), "w") as f:
-                f.write(summary + '\n')
+    if exporter:
+        exporter.set_dest(dest)
+        exporter.add_series_texts(summary=get_series_summary(soup))
 
     progress.console.print(
         f"Downloading [italic medium_spring_green]{series_title}[/] from {series_url}"
@@ -688,6 +729,8 @@ def download_webtoon(
             chapters_to_download
         )  # convert into an interable that can be consumed
         zeros = int(math.log10(end_chapter)) + 1
+        if exporter:
+            exporter.set_chapter_config(zeros, separate_chapters)
         with ThreadPoolExecutor(max_workers=4) as pool:
             chapter_download_futures = set()
             for chapter_info in itertools.islice(
@@ -713,7 +756,7 @@ def download_webtoon(
                         chapter_dest,
                         zeros,
                         images_format,
-                        export_texts,
+                        exporter,
                     )
                 )
 
@@ -751,7 +794,7 @@ def download_webtoon(
                             chapter_dest,
                             zeros,
                             images_format,
-                            export_texts,
+                            exporter,
                         )
                     )
 
@@ -777,6 +820,7 @@ def main():
             return
     series_url = args.url
     separate = args.seperate or args.separate
+    exporter = TextExporter(args.export_format) if args.export_texts else None
     try:
         download_webtoon(
             series_url,
@@ -786,8 +830,10 @@ def main():
             args.images_format,
             args.latest,
             separate,
-            args.export_texts,
+            exporter,
         )
+        if exporter:
+            exporter.write_data()
     except Exception as exc:
         log.exception(exc)
         sys.exit(1)
