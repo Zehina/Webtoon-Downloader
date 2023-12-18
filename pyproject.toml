@@ -1,0 +1,49 @@
+[build-system]
+requires = ['setuptools >= 61.0']
+build-backend = 'setuptools.build_meta'
+
+[project]
+name = 'Webtoon_Downloader'
+version = '0.7.0'
+description = 'Webtoons Scraper for downloading chapters of any series hosted on the webtoons website.'
+authors = [
+  {name = 'Ali Taibi', email = 'zehinadev@gmail.com'},
+]
+requires-python = '>=3.7'
+dependencies = [
+  'beautifulsoup4 >= 4.10.0',
+  'lxml >= 4.6.3',
+  'Pillow >= 8.3.1',
+  'requests >= 2.26.0',
+  'rich >= 10.10.0',
+]
+readme = 'README.md'
+license = {file = 'LICENSE'}
+keywords = ['webtoon', 'downloader', 'scraper']
+classifiers = [
+  'Development Status :: 5 - Production/Stable',
+  'Intended Audience :: Developers',
+  'License: OSI Approved :: MIT License',
+]
+
+[project.urls]
+Homepage = 'https://github.com/Zehina/Webtoon-Downloader'
+Issues = 'https://github.com/Zehina/Webtoon-Downloader/issues'
+Repository = 'https://github.com/Zehina/Webtoon-Downloader.git'
+
+[project.scripts]
+webtoon-downloader = 'Webtoon_Downloader.webtoon_downloader:main'
+
+[tool.setuptools]
+include-package-data = false
+packages = [
+  'Webtoon_Downloader',
+  'Webtoon_Downloader.data',
+]
+
+[tool.setuptools.package-dir]
+Webtoon_Downloader = 'src'
+'Webtoon_Downloader.data' = ''
+
+[tool.setuptools.package-data]
+'Webtoon_Downloader.data' = ['README.md']
