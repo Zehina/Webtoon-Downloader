@@ -59,41 +59,41 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
    ```sh
    git clone https://github.com/Zehina/Webtoon-Downloader.git
    ```
-2. Navigate to the src folder containing the script
+2. Navigate to the project folder
     ```sh
     cd Webtoon-Downloader
-    cd src
     ```
-3. Install required modules
+3. Install this module in the system and generate a `webtoon-downloader`
+   console-script for easier usage
    ```sh
-   pip install -r requirements.txt 
+   pip install .
    ```
 
 <!-- USAGE EXAMPLES -->
 ## Usage
 * Downloading all chapters of a given title.
     ```ps
-    $ python webtoon_downloader.py "www.webtoons.com/en/.../.../list?title_no=...&page=1"
+    $ webtoon-downloader "www.webtoons.com/en/.../.../list?title_no=...&page=1"
     ```
 * Downloading all released chapters starting from chapter 10 until the last released chapter.
     ```ps
-    $ python webtoon_downloader.py [url] --start 10
+    $ webtoon-downloader [url] --start 10
     ```
 * Downloading all released chapters until chapter 150.
     ```ps
-    $ python webtoon_downloader.py [url] --end 150
+    $ webtoon-downloader [url] --end 150
     ```
 * Downloading all released chapters between chapter 35 and chapter 67, inclusive of both of these chapters.
     ```ps
-    $ python webtoon_downloader.py [url] --start 35 --end 67
+    $ webtoon-downloader [url] --start 35 --end 67
     ```
 * Downloading only the latest released chapter using either ```-l``` or ```--latest```.
     ```ps
-    $ python webtoon_downloader.py [url] --latest
+    $ webtoon-downloader [url] --latest
     ```
 * You can change the format of the downloaded pictures with the ```--images-format``` argument
     ```ps
-    $ python webtoon_downloader.py [url] --images-format 'png'
+    $ webtoon-downloader [url] --images-format 'png'
     ```
 * By default, the downloaded chapters will be stored under the current working directory with the folder name [series_title]. 
 For example, downloading Tower of God, Chapter 150 would result in the following:
@@ -106,12 +106,12 @@ For example, downloading Tower of God, Chapter 150 would result in the following
     ```
 * In order to download these images into a different folder, you can use the ```--dest``` optional argument.
     ```ps
-    $ python webtoon_downloader.py [url] --dest ./path/to/parent/folder/of/downloaded/images
+    $ webtoon-downloader [url] --dest ./path/to/parent/folder/of/downloaded/images
     ```
 
 * The downloaded images of the chapters are by default all located in the ```[dest]```, however these images can be separated into separate directories by providing the ```--separate``` argument, where each directory corresponds to a downloaded chapter.
     ```ps
-    $ python webtoon_downloader.py [url] --separate
+    $ webtoon_downloader.py [url] --separate
     ```
   For example, downloading Tower of God, Chapter 150 to 152 would result in the following:
     ```ps  

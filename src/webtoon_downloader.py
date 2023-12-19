@@ -35,7 +35,10 @@ from rich.progress import (
 )
 from rich.text import Text
 
-from options import Options
+try:
+    from .options import Options  # if installed as a module
+except ImportError:
+    from options import Options  # if running from source
 
 
 @dataclass(order=True, frozen=True)
@@ -818,12 +821,7 @@ def main():
     except Exception as exc:
         console.print(f"[red]Error:[/] {exc}")
         sys.exit(1)
-    if args.readme:
-        parent_path = pathlib.Path(__file__).parent.parent.resolve()
-        with open(os.path.join(parent_path, "README.md"), encoding="utf-8") as readme:
-            markdown = Markdown(readme.read())
-            console.print(markdown)
-            return
+    assert not args.readme, "expected parser.parse() to handle readme: it didn't"
     series_url = args.url
     separate = args.seperate or args.separate
     exporter = TextExporter(args.export_format) if args.export_texts else None
