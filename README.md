@@ -111,7 +111,7 @@ For example, downloading Tower of God, Chapter 150 would result in the following
 
 * The downloaded images of the chapters are by default all located in the ```[dest]```, however these images can be separated into separate directories by providing the ```--separate``` argument, where each directory corresponds to a downloaded chapter.
     ```ps
-    $ webtoon_downloader.py [url] --separate
+    $ webtoon-downloader [url] --separate
     ```
   For example, downloading Tower of God, Chapter 150 to 152 would result in the following:
     ```ps  
