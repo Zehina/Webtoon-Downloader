@@ -17,6 +17,7 @@ lxml = "^4.9.4"
 pillow = "^10.1.0"
 requests = "^2.31.0"
 rich = "^13.7.0"
+rich-argparse = "^1.4.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
