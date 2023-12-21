@@ -21,7 +21,7 @@
 [![License](https://img.shields.io/github/license/Zehina/webtoon-downloader)](https://img.shields.io/github/license/Zehina/webtoon-downloader)
 
 <p align="center">
-  <img src="imgs/demo.gif">
+  <img src="docs/imgs/demo.gif">
 </p>
 
 <!-- TABLE OF CONTENTS -->
@@ -107,12 +107,12 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
 - By default, the downloaded chapters will be stored under the current working directory with the folder name [series_title].
   For example, downloading Tower of God, Chapter 150 would result in the following:
   `ps
-    Tower_of_God
-        │--150_001.jpg
-        │--150_002.jpg
-        │--150_003.jpg
-        │...
-    `
+Tower_of_God
+    │--150_001.jpg
+    │--150_002.jpg
+    │--150_003.jpg
+    │...
+`
 - In order to download these images into a different folder, you can use the `--dest` optional argument.
 
   ```ps
@@ -147,8 +147,8 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
 - You can additionally export the summary, chapter-title and author-notes into text files.
   You can select the format for the output as either JSON (default) or plain text files or both.
   `ps
-    $ webtoon-downloader [url] --export-texts [--export-format <json|text|all>]
-    `
+$ webtoon-downloader [url] --export-texts [--export-format <json|text|all>]
+`
 
 For more details on positional arguments, please use the `-h ` or `--help` argument:
 
@@ -157,7 +157,7 @@ py webtoon_downloader.py --help
 ```
 
 <p align="center">
-  <img src="imgs/help.svg">
+  <img src="docs/imgs/help.svg">
 </p>
 
 <!-- CONTRIBUTING -->
