@@ -1347,6 +1347,20 @@ typing-extensions = {version = ">=4.0.0,<5.0", markers = "python_version < \"3.9
 jupyter = ["ipywidgets (>=7.5.1,<9)"]
 
 [[package]]
+name = "rich-argparse"
+version = "1.4.0"
+description = "Rich help formatters for argparse and optparse"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "rich_argparse-1.4.0-py3-none-any.whl", hash = "sha256:68b263d3628d07b1d27cfe6ad896da2f5a5583ee2ba226aeeb24459840023b38"},
+    {file = "rich_argparse-1.4.0.tar.gz", hash = "sha256:c275f34ea3afe36aec6342c2a2298893104b5650528941fb53c21067276dba19"},
+]
+
+[package.dependencies]
+rich = ">=11.0.0"
+
+[[package]]
 name = "setuptools"
 version = "69.0.2"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
@@ -1526,4 +1540,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<4.0"
-content-hash = "e95d92184d433d0db126595ad3d144f43dee486eab7ac7dbf8686ffbc8cf4cf8"
+content-hash = "2a1bedc828f1da7e8675b99b338068b198dc7cd20f72a8c00fc529db6b60edb0"
