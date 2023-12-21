@@ -3,7 +3,8 @@ name: Main
 on:
   push:
     branches:
-      - main
+      - master
+      - new-structure #TODO:remove
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
