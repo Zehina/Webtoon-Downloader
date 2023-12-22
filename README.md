@@ -58,8 +58,6 @@ To get a local copy up and running follow these simple steps.
 
 Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python version required is:
 
-- Python >= 3.7
-
 ### Installation
 
 1. Clone the repo

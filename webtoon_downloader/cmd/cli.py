@@ -13,6 +13,7 @@ from rich.progress import (
     Progress,
     ProgressColumn,
     SpinnerColumn,
+    Task,
     TextColumn,
     TimeRemainingColumn,
 )
@@ -23,19 +24,33 @@ from webtoon_downloader.core.downloader import download_webtoon
 from webtoon_downloader.core.utils import TextExporter
 
 
-class CustomTransferSpeedColumn(ProgressColumn):
+class HumanReadableSpeedColumn(ProgressColumn):
     """Renders human readable transfer speed."""
 
-    def render(self, task) -> Text:
-        """Show data transfer speed."""
+    def render(self, task: Task) -> Text:
+        """Calculate and display the data transfer speed in a human-readable format.
+
+        Args:
+            task: The task for which speed is being rendered.
+
+        Returns:
+            A rich Text object displaying the speed.
+        """
+        speed = self._calculate_readable_speed(task)
+        speed_type = task.fields.get("type", "units")
+        return Text(f"{speed} {speed_type}/s", style="progress.data.speed", justify="center")
+
+    def _calculate_readable_speed(self, task: Task) -> str:
+        """Calculate human-readable speed.
+
+        Args:
+            task: The task for which speed is being calculated.
+
+        Returns:
+            Human-readable speed.
+        """
         speed = task.finished_speed or task.speed
-        if speed is None:
-            return Text("?", style="progress.data.speed", justify="center")
-        return Text(
-            f"{task.speed:2.0f} {task.fields.get('type')}/s",
-            style="progress.data.speed",
-            justify="center",
-        )
+        return "?" if speed is None else f"{speed:2.0f}"
 
 
 ######################## Header Configuration ################################
@@ -128,7 +143,7 @@ def run():
         "[progress.percentage]{task.percentage:>3.2f}%",
         "•",
         SpinnerColumn(style="progress.data.speed"),
-        CustomTransferSpeedColumn(),
+        HumanReadableSpeedColumn(),
         "•",
         TextColumn(
             "[green]{task.completed:>02d}[/]/[bold green]{task.fields[rendered_total]}[/]",
