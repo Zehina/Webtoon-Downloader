@@ -9,8 +9,16 @@ from furl import furl
 class InvalidHTMLObject(TypeError):
     """Exception raised when variable is neither a string nor a BeautifulSoup object."""
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "Variable passed is neither a string nor a BeautifulSoup object"
+
+
+class ElementNotFoundError(Exception):
+    """Exception raised when an expected element is not found."""
+
+    def __init__(self, element_name: str):
+        self.element_name = element_name
+        super().__init__(f"Element '{element_name}' not found")
 
 
 def _ensure_beautiful_soup(html: str | BeautifulSoup) -> BeautifulSoup:
@@ -32,20 +40,33 @@ class WebtoonMainPageExtractor:
     html: str | BeautifulSoup
     _soup: BeautifulSoup = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._soup = _ensure_beautiful_soup(self.html)
 
     def get_series_title(self) -> str:
         """Extracts the full title series."""
-        return self._soup.find(class_="subj").get_text(separator=" ").replace("\n", "").replace("\t", "")
+        _tag = self._soup.find(class_="subj")
+        if not _tag:
+            raise ElementNotFoundError("sub")
+
+        return _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
 
     def get_series_summary(self) -> str:
         """Extracts the series summary."""
-        return self._soup.find(class_="summary").get_text(separator=" ").replace("\n", "").replace("\t", "")
+        _tag = self._soup.find(class_="summary")
+        if not _tag:
+            raise ElementNotFoundError("summary")
+
+        return _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
 
     def get_chapter_viewer_url(self) -> str:
         """Extracts the URL of the webtoon chapter reader."""
-        return furl(self._soup.select_one("#_btnEpisode")["href"]).remove(args=["episode_no"]).url
+        _tag = self._soup.select_one("#_btnEpisode")
+        if not _tag:
+            raise ElementNotFoundError("_btnEpisode")
+
+        _furl = furl(_tag["href"]).remove(args=["episode_no"])
+        return _furl.url
 
 
 @dataclass
@@ -59,18 +80,33 @@ class WebtoonViewerPageExtractor:
     html: str | BeautifulSoup
     _soup: BeautifulSoup = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self._soup = _ensure_beautiful_soup(self.html)
 
     def get_chapter_title(self) -> str:
         """Extracts the chapter title."""
-        return self._soup.find("h1").get_text().strip()
+        _tag = self._soup.find("h1")
+        if not _tag:
+            raise ElementNotFoundError("title_h1")
 
-    def get_chapter_notes(self) -> str | None:
-        """Extracts the chapter author notes."""
-        node = self._soup.find(class_="author_text")
-        return node.get_text().strip().replace("\r\n", "\n") if node else None
+        return _tag.get_text().strip()
+
+    def get_chapter_notes(self) -> str:
+        """Extracts the chapter author notes if it exists. Returns an empty string otherwise"""
+        _tag = self._soup.find(class_="author_text")
+        if not _tag:
+            return ""
+
+        return _tag.get_text().strip().replace("\r\n", "\n")
 
     def get_img_urls(self) -> list[str]:
         """Extracts image URLs from the chapter."""
-        return [tag["data-url"] for tag in self._soup.find("div", class_="viewer_img _img_viewer_area").find_all("img")]
+        _nav = self._soup.find("div", class_="viewer_img _img_viewer_area")
+        if not _nav:
+            raise ElementNotFoundError("_img_viewer_area")
+
+        _tags = _nav.find_all("img")
+        if not _tags:
+            raise ElementNotFoundError("all_img")
+
+        return [tag["data-url"] for tag in _tags]

@@ -29,6 +29,9 @@ mypy = "^1.5.1"
 pre-commit = "^3.4.0"
 tox = "^4.11.1"
 pytest-asyncio = "^0.23.2"
+types-beautifulsoup4 = "^4.12.0.7"
+types-pillow = "^10.1.0.2"
+types-requests = "^2.31.0.10"
 
 [tool.poetry.group.docs.dependencies]
 mkdocs = "^1.4.2"
@@ -41,13 +44,13 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.mypy]
 files = ["webtoon_downloader"]
-disallow_untyped_defs = "True"
-disallow_any_unimported = "True"
-no_implicit_optional = "True"
-check_untyped_defs = "True"
-warn_return_any = "True"
-warn_unused_ignores = "True"
-show_error_codes = "True"
+disallow_untyped_defs = true
+disallow_any_unimported = true
+no_implicit_optional = true
+check_untyped_defs = true
+warn_return_any = true
+warn_unused_ignores = true
+show_error_codes = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

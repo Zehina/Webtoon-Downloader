@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import random
 from dataclasses import dataclass, field
-from typing import List
 
 import httpx
 
@@ -20,36 +21,32 @@ USER_AGENTS = [
 @dataclass
 class WebtoonClient:
     http_client: httpx.AsyncClient
-    user_agents: List[str] = field(default_factory=lambda: USER_AGENTS)
+    user_agents: list[str] = field(default_factory=lambda: USER_AGENTS)
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> WebtoonClient:
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
+    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
         await self.http_client.aclose()
 
     async def get(self, url: str) -> httpx.Response:
-        async with self.http_client as client:
-            return await client.get(
-                url,
-                headers={
-                    "accept-language": "en-US,en;q=0.9",
-                    "dnt": "1",
-                    "user-agent": random.choice(self.user_agents),
-                },
-            )
+        return await self.http_client.get(url, headers=self._generate_headers())
+
+    def _generate_headers(self) -> dict:
+        return {
+            "accept-language": "en-US,en;q=0.9",
+            "dnt": "1",
+            "user-agent": random.choice(self.user_agents),
+        }
 
 
 @dataclass
 class WebtoonViewerClient(WebtoonClient):
     async def get(self, url: str) -> httpx.Response:
-        async with self.http_client as client:
-            return await client.get(
-                url,
-                headers={
-                    "accept-language": "en-US,en;q=0.9",
-                    "dnt": "1",
-                    "referer": "https://www.webtoons.com/",
-                    "user-agent": random.choice(self.user_agents),
-                },
-            )
+        headers = self._generate_viewer_headers()
+        return await self.http_client.get(url, headers=headers)
+
+    def _generate_viewer_headers(self) -> dict:
+        headers = super()._generate_headers()
+        headers["referer"] = "https://www.webtoons.com/"
+        return headers

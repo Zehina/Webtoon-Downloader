@@ -2,7 +2,7 @@ import itertools
 import logging
 import math
 import os
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from threading import Event
 from typing import List, Optional
 from urllib.parse import parse_qs, urlparse
@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 import requests
 import rich
 from bs4 import BeautifulSoup
-from rich.progress import Progress
+from rich.progress import Progress, TaskID
 
 from webtoon_downloader.core.extractor import (
     WebtoonMainPageExtractor,
@@ -27,7 +27,7 @@ from webtoon_downloader.core.utils import (
 
 log = logging.getLogger(__name__)
 
-N_CONCURRENT_CHAPTERS_DOWNLOAD = 4
+N_CONCURRENT_CHAPTERS_DOWNLOAD = 10
 USER_AGENT = (
     (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -44,7 +44,7 @@ headers = {
 }
 
 
-def get_first_chapter_episode_no(session: requests.session, series_url: str) -> int:
+def get_first_chapter_episode_no(session: requests.Session, series_url: str) -> int:
     """
     Fetches the 'episode_no' field that is used in a Webtoon's viewer. Most series should start with episode 1
     but some start at 2, and others might even be 80+.
@@ -60,8 +60,11 @@ def get_first_chapter_episode_no(session: requests.session, series_url: str) -> 
     try:
         # First attempt to fetch the episode_no
         soup = BeautifulSoup(session.get(series_url).text, "html.parser")
-        href = soup.find("a", id="_btnEpisode")["href"]
-        return int(parse_qs(urlparse(href).query)["episode_no"][0])
+        _tag = soup.find("a", id="_btnEpisode")
+        if not _tag:
+            return -1
+
+        return int(parse_qs(urlparse(_tag["href"]).query)["episode_no"][0])
     except (TypeError, KeyError):
         # If the second attempt fails, try to get the first episode from the list
         soup = BeautifulSoup(session.get(f"{series_url}&page=9999").text, "html.parser")
@@ -69,7 +72,7 @@ def get_first_chapter_episode_no(session: requests.session, series_url: str) -> 
 
 
 def get_chapters_details(
-    session: requests.session,
+    session: requests.Session,
     viewer_url: str,
     series_url: str,
     start_chapter: int = 1,
@@ -103,6 +106,10 @@ def get_chapters_details(
     log.info("Sending request to '%s'", episode_url)
     resp = session.get(episode_url)
     soup = BeautifulSoup(resp.text, "lxml")
+    _episode_cont = soup.find("div", class_="episode_cont").find_all("li")
+    if not _episode_cont:
+        return []
+
     chapter_details = [
         ChapterInfo(
             episode_details.find("span", {"class": "subj"}).text,
@@ -110,15 +117,13 @@ def get_chapters_details(
             int(episode_details["data-episode-no"]),
             episode_details.find("a")["href"],
         )
-        for chapter_number, episode_details in enumerate(
-            soup.find("div", class_="episode_cont").find_all("li"), start=1
-        )
+        for chapter_number, episode_details in enumerate(_episode_cont, start=1)
     ]
 
     return chapter_details[int(start_chapter or 1) - 1 : end_chapter]
 
 
-def get_chapter_html(session: requests.session, viewer_url: str, data_episode_num: int) -> str:
+def get_chapter_html(session: requests.Session, viewer_url: str, data_episode_num: int) -> str:
     """
     Download the HTML source of a chapter.
 
@@ -141,7 +146,7 @@ def get_chapter_html(session: requests.session, viewer_url: str, data_episode_nu
 
 
 def download_chapter(
-    chapter_download_task_id: int,
+    chapter_download_task_id: TaskID,
     done_event: Event,
     progress: Progress,
     session: requests.Session,
@@ -150,10 +155,10 @@ def download_chapter(
     dest: str,
     zeros: int,
     images_format: str = "jpg",
-    exporter: TextExporter = None,
-):
+    exporter: TextExporter | None = None,
+) -> None:
     """
-    downloads pages starting of a given chapter, inclusive.
+    downloads page starting of a given chapter, inclusive.
     stores the downloaded images into the dest path.
 
     Arguments:
@@ -220,7 +225,7 @@ def download_chapter(
     progress.remove_task(chapter_download_task_id)
 
 
-def setup_session():
+def setup_session() -> requests.Session:
     """
     Set up a requests session for downloading the webtoon.
     """
@@ -241,8 +246,8 @@ def download_webtoon(
     images_format: str = "jpg",
     download_latest_chapter: bool = False,
     separate_chapters: bool = False,
-    exporter: TextExporter = None,
-):
+    exporter: TextExporter | None = None,
+) -> None:
     """
     downloads all chapters starting from start_chapter until end_chapter, inclusive.
     stores the downloaded chapter into the dest path.
@@ -325,8 +330,10 @@ def download_chapters(
     images_format: str = "jpg",
     download_latest_chapter: bool = False,
     separate_chapters: bool = False,
-    exporter: TextExporter = None,
+    exporter: TextExporter | None = None,
 ) -> int:
+    n_downloaded_chapters = 0
+
     with progress:
         if download_latest_chapter:
             chapters_to_download = [get_chapters_details(session, viewer_url, series_url)[-1]]
@@ -355,12 +362,13 @@ def download_chapters(
             rendered_total=n_chapters_to_download,
         )
 
-        chapters_to_download = iter(chapters_to_download)  # convert into an interable that can be consumed
+        # convert into an interable that can be consumed
         zeros = int(math.log10(end_chapter)) + 1
+
         if exporter:
             exporter.set_chapter_config(zeros, separate_chapters)
 
-        def prepare_chapter_download(chapter_info):
+        def prepare_chapter_download(chapter_info: ChapterInfo) -> Future:
             chapter_dest = os.path.join(dest, get_chapter_dir(chapter_info, zeros, separate_chapters))
             chapter_download_task = progress.add_task(
                 f"[plum2]Chapter {chapter_info.chapter_number}.",
@@ -384,22 +392,30 @@ def download_chapters(
                 exporter,
             )
 
+        print(f"number of chapters to download: {len(chapters_to_download)}")
+        chapters_to_download = iter(chapters_to_download)
         with ThreadPoolExecutor(max_workers=4) as pool:
             chapter_download_futures = {
                 prepare_chapter_download(chapter_info)
                 for chapter_info in itertools.islice(chapters_to_download, N_CONCURRENT_CHAPTERS_DOWNLOAD)
             }
-
             while chapter_download_futures:
                 done, chapter_download_futures = wait(chapter_download_futures, return_when=FIRST_COMPLETED)
+                for fut in done:
+                    if fut.exception():
+                        log.error(
+                            "Error occurred whilst trying to download chapter: %s",
+                            fut.exception(),
+                        )
+                    else:
+                        n_downloaded_chapters += 1
+                        progress.update(series_download_task, advance=1)
 
-                for _ in done:
-                    progress.update(series_download_task, advance=1)
                     if done_event.is_set():
-                        return
+                        return n_downloaded_chapters
 
-                chapter_download_futures.update(
-                    prepare_chapter_download(chapter_info)
-                    for chapter_info in itertools.islice(chapters_to_download, len(done))
-                )
-    return n_chapters_to_download
+                    chapter_download_futures.update(
+                        prepare_chapter_download(chapter_info)
+                        for chapter_info in itertools.islice(chapters_to_download, len(done))
+                    )
+    return n_downloaded_chapters
