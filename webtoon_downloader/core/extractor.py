@@ -1,6 +1,9 @@
-from typing import Union
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup
+from furl import furl
 
 
 class InvalidHTMLObject(TypeError):
@@ -10,116 +13,64 @@ class InvalidHTMLObject(TypeError):
         return "Variable passed is neither a string nor a BeautifulSoup object"
 
 
-def get_series_title(html: Union[str, BeautifulSoup]) -> str:
+def _ensure_beautiful_soup(html: str | BeautifulSoup) -> BeautifulSoup:
+    """Ensure the provided HTML is a BeautifulSoup object."""
+    if not isinstance(html, str) and not isinstance(html, BeautifulSoup):
+        raise InvalidHTMLObject()
+
+    return html if isinstance(html, BeautifulSoup) else BeautifulSoup(html, "lxml")
+
+
+@dataclass
+class WebtoonMainPageExtractor:
+    """Extractor for the main page of a Webtoon.
+
+    Attributes:
+        html: HTML content of the Webtoon main page. (ex: https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95)
     """
-    Extracts the full title series from the html of the scraped url.
 
-    Arguments:
-    ----------
-    series_url  : url of the series to scrap from the webtoons.com website \
-                  series title are grabbed differently for webtoons of the challenge category
-    html        : the html body of the scraped series url, passed either as a raw string or a bs4.BeautifulSoup object
+    html: str | BeautifulSoup
+    _soup: BeautifulSoup = field(init=False)
 
-    Returns:
-    ----------
-        The full title of the series.
+    def __post_init__(self):
+        self._soup = _ensure_beautiful_soup(self.html)
+
+    def get_series_title(self) -> str:
+        """Extracts the full title series."""
+        return self._soup.find(class_="subj").get_text(separator=" ").replace("\n", "").replace("\t", "")
+
+    def get_series_summary(self) -> str:
+        """Extracts the series summary."""
+        return self._soup.find(class_="summary").get_text(separator=" ").replace("\n", "").replace("\t", "")
+
+    def get_chapter_viewer_url(self) -> str:
+        """Extracts the URL of the webtoon chapter reader."""
+        return furl(self._soup.select_one("#_btnEpisode")["href"]).remove(args=["episode_no"]).url
+
+
+@dataclass
+class WebtoonViewerPageExtractor:
+    """Extractor for a viewer page of a Webtoon.
+
+    Attributes:
+        html: HTML content of a Webtoon viewer page. (ex: https://www.webtoons.com/en/fantasy/tower-of-god/season-3-ep-173/viewer?title_no=95&episode_no=591)
     """
-    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
-    series_title = _html.find(class_="subj").get_text(separator=" ").replace("\n", "").replace("\t", "")
-    return series_title
 
+    html: str | BeautifulSoup
+    _soup: BeautifulSoup = field(init=False)
 
-def get_series_summary(html: Union[str, BeautifulSoup]) -> str:
-    """
-    Extracts the series summary from the html of the series overview page.
+    def __post_init__(self):
+        self._soup = _ensure_beautiful_soup(self.html)
 
-    Arguments:
-    ----------
+    def get_chapter_title(self) -> str:
+        """Extracts the chapter title."""
+        return self._soup.find("h1").get_text().strip()
 
-    html : the html body of the scraped series overview page, passed either as a raw
-           string or a bs4.BeautifulSoup object
+    def get_chapter_notes(self) -> str | None:
+        """Extracts the chapter author notes."""
+        node = self._soup.find(class_="author_text")
+        return node.get_text().strip().replace("\r\n", "\n") if node else None
 
-    Returns:
-    --------
-        The series summary
-    """
-    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
-    return _html.find(class_="summary").get_text(separator=" ").replace("\n", "").replace("\t", "")
-
-
-def get_chapter_title(html: Union[str, BeautifulSoup]) -> str:
-    """
-    Extracts the chapter title from the html of the chapter.
-
-    Arguments:
-    ----------
-
-    html : the html body of the scraped chapter, passed either as a raw string or
-           a bs4.BeautifulSoup object
-
-    Returns:
-    --------
-        The chapter title
-    """
-    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
-    return _html.find("h1").get_text().strip()
-
-
-def get_chapter_notes(html: Union[str, BeautifulSoup]) -> str:
-    """
-    Extracts the chapter author notes from the html of the chapter.
-
-    Arguments:
-    ----------
-
-    html : the html body of the scraped chapter, passed either as a raw string or
-           a bs4.BeautifulSoup object
-
-    Returns:
-    --------
-        The chapter notes or None if not available
-    """
-    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
-    node = _html.find(class_="author_text")
-    if node is None:
-        return None
-    else:
-        return node.get_text().strip().replace("\r\n", "\n")
-
-
-def extract_img_urls(html: Union[str, BeautifulSoup]) -> list:
-    """
-    Extract the image URLs from the chapters HTML document.
-
-    Arguments:
-    ----------
-    html : the html body of the chapter, passed either as a raw string or a bs4.BeautifulSoup object
-
-    Returns:
-    --------
-    (list[str]): list of all image urls extracted from the chapter.
-    """
-    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html, "lxml")
-    return [url["data-url"] for url in _html.find("div", class_="viewer_img _img_viewer_area").find_all("img")]
-
-
-def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
-    """
-    Extracts the url of the webtoon chapter reader related to the series given in the series url.
-
-    Arguments:
-    ----------
-    html : str | BeautifulSoup
-        the html body of the scraped series url, passed either as a raw string or a bs4.BeautifulSoup object
-
-    Returns:
-    ----------
-    (str): chapter reader url.
-    """
-    if isinstance(html, str):
-        return BeautifulSoup(html).find("li", attrs={"data-episode-no": True}).find("a")["href"].split("&")[0]
-
-    if isinstance(html, BeautifulSoup):
-        return html.find("li", attrs={"data-episode-no": True}).find("a")["href"].split("&")[0]
-
-    raise InvalidHTMLObject()
+    def get_img_urls(self) -> list[str]:
+        """Extracts image URLs from the chapter."""
+        return [tag["data-url"] for tag in self._soup.find("div", class_="viewer_img _img_viewer_area").find_all("img")]

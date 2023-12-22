@@ -13,12 +13,8 @@ from bs4 import BeautifulSoup
 from rich.progress import Progress
 
 from webtoon_downloader.core.extractor import (
-    extract_img_urls,
-    get_chapter_notes,
-    get_chapter_title,
-    get_chapter_viewer_url,
-    get_series_summary,
-    get_series_title,
+    WebtoonMainPageExtractor,
+    WebtoonViewerPageExtractor,
 )
 from webtoon_downloader.core.models import ChapterInfo
 from webtoon_downloader.core.utils import (
@@ -186,15 +182,15 @@ def download_chapter(
     """
     log.debug("[italic red]Accessing[/italic red] chapter %d", chapter_info.chapter_number)
     html = get_chapter_html(session, viewer_url, chapter_info.data_episode_no)
-    soup = BeautifulSoup(html, "lxml")
-    img_urls = extract_img_urls(soup)
+    extractor = WebtoonViewerPageExtractor(html)
+    img_urls = extractor.get_img_urls()
     if not os.path.exists(dest):
         os.makedirs(dest)
     if exporter:
         exporter.add_chapter_texts(
             chapter=chapter_info.chapter_number,
-            title=get_chapter_title(soup),
-            notes=get_chapter_notes(soup),
+            title=extractor.get_chapter_title(),
+            notes=extractor.get_chapter_notes(),
         )
     progress.update(chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls))
     progress.start_task(chapter_download_task_id)
@@ -279,19 +275,23 @@ def download_webtoon(
     """
     session = setup_session()
     resp = session.get(series_url, headers=headers)
-    soup = BeautifulSoup(resp.text, "lxml")
-    viewer_url = get_chapter_viewer_url(soup)
-    series_title = get_series_title(soup)
+    extractor = WebtoonMainPageExtractor(resp.text)
+
+    viewer_url = extractor.get_chapter_viewer_url()
+    series_title = extractor.get_series_title()
+
     if not (dest):
         dest = slugify_file_name(series_title)
+
     if not os.path.exists(dest):
         log.warning("Creading Directory: [#80BBA6]%s[/]", dest)
         os.makedirs(dest)  # creates directory and sub-dirs if dest path does not exist
     else:
         log.warning("Directory Exists: [#80BBA6]%s[/]", dest)
+
     if exporter:
         exporter.set_dest(dest)
-        exporter.add_series_texts(summary=get_series_summary(soup))
+        exporter.add_series_texts(summary=extractor.get_series_summary())
 
     progress.console.print(f"Downloading [italic medium_spring_green]{series_title}[/] from {series_url}")
     n_downloads = download_chapters(
