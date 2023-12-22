@@ -2,6 +2,7 @@ import argparse
 import os
 import pathlib
 import sys
+from typing import List
 
 import rich_argparse._lazy_rich as r
 from rich.console import Console
@@ -12,7 +13,7 @@ from rich_argparse import RichHelpFormatter
 class MutuallyExclusiveArgumentsError(Exception):
     """Exception raised when a group of arguments should be mutually exclusive from another set of arguments"""
 
-    def __init__(self, args1, args2):
+    def __init__(self, args1: List[str], args2: List[str]):
         self.args1 = args1
         self.args2 = args2
         self.message = f"Arguments from {args1} should be mutually exclusive from {args2}"
@@ -53,7 +54,7 @@ class Options:
         self.console = console if console else Console()
         self.initialized = False
 
-    def initialize(self):
+    def initialize(self) -> None:
         """
         sets the input parser with the different arguments
         """
@@ -122,7 +123,7 @@ class Options:
             version="[argparse.prog]%(prog)s[/] version [i]1.0.0[/]",
         )
 
-    def print_readme(self):
+    def print_readme(self) -> None:
         script_dir = pathlib.Path(__file__).parent.parent
         # Path as for an installed module
         readme_path = script_dir.joinpath("data", "README.md").resolve()
@@ -132,12 +133,12 @@ class Options:
         with open(readme_path, encoding="utf-8") as readme:
             markdown = Markdown(readme.read())
             self.console.print(markdown)
-            return
 
-    def parse(self):
+    def parse(self) -> argparse.Namespace:
         if len(sys.argv) == 1:
             self.parser.print_help()
             sys.exit(0)
+
         self.args = self.parser.parse_args()
         if self.args.readme:
             self.print_readme()

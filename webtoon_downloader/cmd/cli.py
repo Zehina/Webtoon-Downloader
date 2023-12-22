@@ -4,6 +4,7 @@ import signal
 import sys
 from logging.handlers import RotatingFileHandler
 from threading import Event
+from types import FrameType
 
 from rich import traceback
 from rich.console import Console
@@ -107,10 +108,10 @@ log.addHandler(console_handler)
 done_event = Event()
 
 
-progress: Progress = None
+progress: Progress | None = None
 
 
-def exit_handler(sig, frame):
+def exit_handler(sig: int, frame: FrameType | None) -> None:
     """
     stops execution of the program.
     """
@@ -122,7 +123,7 @@ def exit_handler(sig, frame):
     sys.exit(0)
 
 
-def run():
+def run() -> None:
     global progress
     signal.signal(signal.SIGINT, exit_handler)
     parser = Options()

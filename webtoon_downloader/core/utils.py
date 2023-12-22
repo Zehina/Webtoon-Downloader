@@ -8,7 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import requests
 from PIL import Image
-from rich.progress import Progress
+from rich.progress import Progress, TaskID
 
 from webtoon_downloader.core.models import ChapterInfo
 
@@ -33,7 +33,7 @@ image_headers = {"referer": "https://www.webtoons.com/", **headers}
 
 
 class ThreadPoolExecutorWithQueueSizeLimit(ThreadPoolExecutor):
-    def __init__(self, *args, maxsize=50, **kwargs):
+    def __init__(self, *args, maxsize: int = 50, **kwargs):
         super().__init__(*args, **kwargs)
         self._work_queue = queue.Queue(maxsize=maxsize)
 
@@ -47,20 +47,22 @@ class TextExporter:
         self.write_json = export_format in ["json", "all"]
         self.write_text = export_format in ["text", "all"]
 
-    def set_chapter_config(self, zeros: int, separate: bool):
+    def set_chapter_config(self, zeros: int, separate: bool) -> None:
         self.separate = separate
         self.zeros = zeros
 
     def set_dest(self, dest: str):
         self.dest = dest
 
-    def add_series_texts(self, summary: str):
-        self.data["summary"] = summary
-        if self.write_text:
-            with open(os.path.join(self.dest, "summary.txt"), "w") as f:
-                f.write(summary + "\n")
+    def add_series_texts(self, summary: str | None) -> None:
+        if not summary or not self.write_text:
+            return
 
-    def add_chapter_texts(self, chapter: int, title: str, notes: str):
+        self.data["summary"] = summary
+        with open(os.path.join(self.dest, "summary.txt"), "w", encoding="utf-8") as f:
+            f.write(summary + "\n")
+
+    def add_chapter_texts(self, chapter: int, title: str, notes: str) -> None:
         self.data["chapters"][chapter] = {"title": title}
         if notes is not None:
             self.data["chapters"][chapter]["notes"] = notes
@@ -69,15 +71,15 @@ class TextExporter:
             if self.separate:
                 prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}")
             prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}_")
-            with open(prefix + "title.txt", "w") as f:
+            with open(prefix + "title.txt", "w", encoding="utf-8") as f:
                 f.write(title + "\n")
             if notes is not None:
-                with open(prefix + "notes.txt", "w") as f:
+                with open(prefix + "notes.txt", "w", encoding="utf-8") as f:
                     f.write(notes + "\n")
 
-    def write_data(self):
+    def write_data(self) -> None:
         if self.write_json:
-            with open(os.path.join(self.dest, "info.json"), "w") as f:
+            with open(os.path.join(self.dest, "info.json"), "w", encoding="utf-8") as f:
                 json.dump(self.data, f, sort_keys=True)
 
 
@@ -114,7 +116,7 @@ def get_chapter_dir(chapter_info: ChapterInfo, zeros: int, separate_chapters: bo
 
 
 def download_image(
-    chapter_download_task_id: int,
+    chapter_download_task_id: TaskID,
     progress: Progress,
     url: str,
     dest: str,

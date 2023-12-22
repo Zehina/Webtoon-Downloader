@@ -1611,6 +1611,56 @@ docs = ["furo (>=2023.8.19)", "sphinx (>=7.2.4)", "sphinx-argparse-cli (>=1.11.1
 testing = ["build[virtualenv] (>=0.10)", "covdefaults (>=2.3)", "detect-test-pollution (>=1.1.1)", "devpi-process (>=1)", "diff-cover (>=7.7)", "distlib (>=0.3.7)", "flaky (>=3.7)", "hatch-vcs (>=0.3)", "hatchling (>=1.18)", "psutil (>=5.9.5)", "pytest (>=7.4)", "pytest-cov (>=4.1)", "pytest-mock (>=3.11.1)", "pytest-xdist (>=3.3.1)", "re-assert (>=1.1)", "time-machine (>=2.12)", "wheel (>=0.41.2)"]
 
 [[package]]
+name = "types-beautifulsoup4"
+version = "4.12.0.7"
+description = "Typing stubs for beautifulsoup4"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "types-beautifulsoup4-4.12.0.7.tar.gz", hash = "sha256:59980028d29bf55d0db359efa305b75bacf0cb92e3f3f6b3fd408f2531df274c"},
+    {file = "types_beautifulsoup4-4.12.0.7-py3-none-any.whl", hash = "sha256:8b03b054cb2e62abf82bbbeda57a07257026f4ed9010ef17d8f8eff43bb1f9b7"},
+]
+
+[package.dependencies]
+types-html5lib = "*"
+
+[[package]]
+name = "types-html5lib"
+version = "1.1.11.15"
+description = "Typing stubs for html5lib"
+optional = false
+python-versions = "*"
+files = [
+    {file = "types-html5lib-1.1.11.15.tar.gz", hash = "sha256:80e1a2062d22a3affe5c28d97da30bffbf3a076d393c80fc6f1671216c1bd492"},
+    {file = "types_html5lib-1.1.11.15-py3-none-any.whl", hash = "sha256:16fe936d99b9f7fc210e2e21a2aed1b6bbbc554ad8242a6ef75f6f2bddb27e58"},
+]
+
+[[package]]
+name = "types-pillow"
+version = "10.1.0.2"
+description = "Typing stubs for Pillow"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "types-Pillow-10.1.0.2.tar.gz", hash = "sha256:525c1c5ee67b0ac1721c40d2bc618226ef2123c347e527e14e05b920721a13b9"},
+    {file = "types_Pillow-10.1.0.2-py3-none-any.whl", hash = "sha256:131078ffa547bf9a201d39ffcdc65633e108148085f4f1b07d4647fcfec6e923"},
+]
+
+[[package]]
+name = "types-requests"
+version = "2.31.0.10"
+description = "Typing stubs for requests"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "types-requests-2.31.0.10.tar.gz", hash = "sha256:dc5852a76f1eaf60eafa81a2e50aefa3d1f015c34cf0cba130930866b1b22a92"},
+    {file = "types_requests-2.31.0.10-py3-none-any.whl", hash = "sha256:b32b9a86beffa876c0c3ac99a4cd3b8b51e973fb8e3bd4e0a6bb32c7efad80fc"},
+]
+
+[package.dependencies]
+urllib3 = ">=2"
+
+[[package]]
 name = "typing-extensions"
 version = "4.9.0"
 description = "Backported and Experimental Type Hints for Python 3.8+"
@@ -1714,4 +1764,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<4.0"
-content-hash = "41c84fbf864c1511dcc54ac008cfbee8f9bc26dbba8f113bef6ac9c957e8995d"
+content-hash = "d9bf06a284149281f9fa45971f734650d70b3c8f9e609920c780cbe3c520afec"
