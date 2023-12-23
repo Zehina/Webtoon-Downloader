@@ -26,7 +26,7 @@ class WebtoonClient:
     async def __aenter__(self) -> WebtoonClient:
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback) -> None:
+    async def __aexit__(self, *_: tuple) -> None:
         await self.http_client.aclose()
 
     async def get(self, url: str) -> httpx.Response:

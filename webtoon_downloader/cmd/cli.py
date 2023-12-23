@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import os
 import signal
@@ -74,13 +76,12 @@ image_headers = {"referer": "https://www.webtoons.com/", **headers}
 ###########################################################################
 
 ######################## Log Configuration ################################
-sys.stdout.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 console = Console()
 traceback.install(console=console, show_locals=False)
 logging.getLogger("urllib3").setLevel(logging.CRITICAL)
-# create logger
 log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)  # set log level
+log.setLevel(logging.DEBUG)
 
 # create formatter
 CLI_FORMAT = "%(message)s"
