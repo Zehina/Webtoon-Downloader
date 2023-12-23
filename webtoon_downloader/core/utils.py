@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import logging
 import os
@@ -5,6 +7,9 @@ import queue
 import re
 import shutil
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any, Literal, TypedDict
 
 import requests
 from PIL import Image
@@ -33,54 +38,68 @@ image_headers = {"referer": "https://www.webtoons.com/", **headers}
 
 
 class ThreadPoolExecutorWithQueueSizeLimit(ThreadPoolExecutor):
-    def __init__(self, *args, maxsize: int = 50, **kwargs):
+    def __init__(self, *args: Any, maxsize: int = 50, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self._work_queue = queue.Queue(maxsize=maxsize)
+        self._work_queue = queue.Queue(maxsize=maxsize)  # type: ignore[assignment]
 
 
+TextExporterFormat = Literal["text", "json", "all"]
+
+
+class ExportChapterData(TypedDict):
+    title: str
+    notes: str
+
+
+class ExportData(TypedDict):
+    chapters: dict[int, ExportChapterData]
+    summary: str
+
+
+@dataclass
 class TextExporter:
     """Writes text elements to files, either to multiple plain text files
     or to a single JSON file, depending on selected export format."""
 
-    def __init__(self, export_format: str):
-        self.data = {"chapters": {}}
-        self.write_json = export_format in ["json", "all"]
-        self.write_text = export_format in ["text", "all"]
+    export_format: TextExporterFormat
+    dest: str | Path = field(default_factory=lambda: Path("."))
+    separate: bool = True
+    zeros: int = 0
 
-    def set_chapter_config(self, zeros: int, separate: bool) -> None:
-        self.separate = separate
-        self.zeros = zeros
+    _data: ExportData = field(init=False)
+    _write_json: bool = field(init=False)
+    _write_text: bool = field(init=False)
 
-    def set_dest(self, dest: str):
-        self.dest = dest
+    def __post_init__(self) -> None:
+        self._data = {"chapters": {}, "summary": ""}
+        self._write_json = self.export_format in ["json", "all"]
+        self._write_text = self.export_format in ["text", "all"]
 
     def add_series_texts(self, summary: str | None) -> None:
-        if not summary or not self.write_text:
+        if not summary or not self._write_text:
             return
-
-        self.data["summary"] = summary
-        with open(os.path.join(self.dest, "summary.txt"), "w", encoding="utf-8") as f:
-            f.write(summary + "\n")
+        self._data["summary"] = summary
+        Path(Path(self.dest) / "summary.txt").write_text(summary + "\n", encoding="utf-8")
 
     def add_chapter_texts(self, chapter: int, title: str, notes: str) -> None:
-        self.data["chapters"][chapter] = {"title": title}
-        if notes is not None:
-            self.data["chapters"][chapter]["notes"] = notes
-        if self.write_text:
-            prefix = self.dest
-            if self.separate:
-                prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}")
-            prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}_")
-            with open(prefix + "title.txt", "w", encoding="utf-8") as f:
-                f.write(title + "\n")
-            if notes is not None:
-                with open(prefix + "notes.txt", "w", encoding="utf-8") as f:
-                    f.write(notes + "\n")
+        self._data["chapters"][chapter] = {"title": title, "notes": notes}
+
+        if not self._write_text:
+            return
+
+        parent = Path(self.dest)
+        if self.separate:
+            parent = parent / f"{chapter:0{self.zeros}d}"
+
+        Path(parent / f"{chapter:0{self.zeros}d}_title.txt").write_text(title + "\n", encoding="utf-8")
+        if notes:
+            Path(parent / f"{chapter:0{self.zeros}d}_notes.txt").write_text(notes + "\n", encoding="utf-8")
 
     def write_data(self) -> None:
-        if self.write_json:
-            with open(os.path.join(self.dest, "info.json"), "w", encoding="utf-8") as f:
-                json.dump(self.data, f, sort_keys=True)
+        if not self._write_json:
+            return
+
+        Path(self.dest, "info.json").write_text(json.dumps(self._data, sort_keys=True, indent=4), encoding="utf-8")
 
 
 def slugify_file_name(file_name: str) -> str:
@@ -125,7 +144,7 @@ def download_image(
     zeros: int,
     image_format: str = "jpg",
     page_digits: int = 1,
-):
+) -> None:
     """
     downloads an image using a direct url into the base path folder.
 
@@ -159,15 +178,8 @@ def download_image(
     log.debug("Requesting chapter %d: page %d", chapter_number, page_number)
     resp = requests.get(url, headers=image_headers, stream=True, timeout=5)
     progress.update(chapter_download_task_id, advance=1)
-    if resp.status_code == 200:
-        resp.raw.decode_content = True
-        file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
-        if image_format == "png":
-            Image.open(resp.raw).save(os.path.join(dest, f"{file_name}.png"))
-        else:
-            with open(os.path.join(dest, f"{file_name}.jpg"), "wb") as f:
-                shutil.copyfileobj(resp.raw, f)
-    else:
+
+    if resp.status_code != 200:
         log.error(
             "[bold red blink]Unable to download page[/][medium_spring_green]%d[/]"
             "from chapter [medium_spring_green]%d[/], request returned"
@@ -176,3 +188,13 @@ def download_image(
             chapter_number,
             resp.status_code,
         )
+        return
+
+    resp.raw.decode_content = True
+    file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
+
+    if image_format == "png":
+        Image.open(resp.raw).save(os.path.join(dest, f"{file_name}.png"))
+    else:
+        with open(os.path.join(dest, f"{file_name}.jpg"), "wb") as f:
+            shutil.copyfileobj(resp.raw, f)

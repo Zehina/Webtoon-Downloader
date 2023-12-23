@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from furl import furl
 
 
@@ -65,8 +65,7 @@ class WebtoonMainPageExtractor:
         if not _tag:
             raise ElementNotFoundError("_btnEpisode")
 
-        _furl = furl(_tag["href"]).remove(args=["episode_no"])
-        return _furl.url
+        return str(furl(_tag["href"]).remove(args=["episode_no"]))
 
 
 @dataclass
@@ -102,6 +101,9 @@ class WebtoonViewerPageExtractor:
     def get_img_urls(self) -> list[str]:
         """Extracts image URLs from the chapter."""
         _nav = self._soup.find("div", class_="viewer_img _img_viewer_area")
+        if not isinstance(_nav, Tag):
+            return []
+
         if not _nav:
             raise ElementNotFoundError("_img_viewer_area")
 

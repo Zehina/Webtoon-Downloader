@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import argparse
 import os
 import pathlib
 import sys
-from typing import List
 
 import rich_argparse._lazy_rich as r
 from rich.console import Console
@@ -13,7 +14,7 @@ from rich_argparse import RichHelpFormatter
 class MutuallyExclusiveArgumentsError(Exception):
     """Exception raised when a group of arguments should be mutually exclusive from another set of arguments"""
 
-    def __init__(self, args1: List[str], args2: List[str]):
+    def __init__(self, args1: list[str], args2: list[str]):
         self.args1 = args1
         self.args2 = args2
         self.message = f"Arguments from {args1} should be mutually exclusive from {args2}"
@@ -45,10 +46,10 @@ class CustomRichHelpFormatter(RichHelpFormatter):
 
 
 class Options:
-    def __init__(self, description="Webtoon Downloader", console=None):
+    def __init__(self, description: str = "Webtoon Downloader", console: Console | None = None) -> None:
         self.parser = argparse.ArgumentParser(
             formatter_class=CustomRichHelpFormatter,
-            description=Markdown(description, style="argparse.text"),
+            description=Markdown(description, style="argparse.text"),  # type: ignore[arg-type]
         )
         RichHelpFormatter.styles["argparse.text"] = "italic"
         self.console = console if console else Console()
