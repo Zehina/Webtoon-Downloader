@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - new-structure #TODO:remove
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
 
