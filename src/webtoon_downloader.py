@@ -458,7 +458,7 @@ def download_image(
     chapter_number: int,
     page_number: int,
     zeros: int,
-    image_format: str = "jpg",
+    image_format: str = "native",
     page_digits: int = 1,
 ):
     """
@@ -485,8 +485,9 @@ def download_image(
         Number of digits used for the chapter number
 
     image_format: str
-        format of downloaded image .
-        (default: jpg)
+        format of downloaded image: either native = whatever got downloaded or
+        jpg/png = convert the image to one of these.
+        (default: native)
 
     page_digits: int
         Number of digits used for the page number inside the chapter
@@ -497,11 +498,28 @@ def download_image(
     if resp.status_code == 200:
         resp.raw.decode_content = True
         file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
-        if image_format == "png":
-            Image.open(resp.raw).save(os.path.join(dest, f"{file_name}.png"))
+        content_type = resp.headers.get('Content-Type')
+        if content_type is None:
+            log.warning('No Content-Type specified for {file_name}, defaulting to jpg')
+            detected_format = 'jpg'
+        elif 'image/jpeg' in content_type:
+            detected_format = 'jpg'
+        elif 'image/png' in content_type:
+            detected_format = 'png'
         else:
-            with open(os.path.join(dest, f"{file_name}.jpg"), "wb") as f:
+            log.warning('Unknown Content-Type "{content_type}" for {file_name}, '
+                        'defaulting to jpg')
+            detected_format = 'jpg'
+        if image_format == 'native' or image_format == detected_format:
+            with open(os.path.join(dest, f"{file_name}.{detected_format}"), "wb") as f:
                 shutil.copyfileobj(resp.raw, f)
+        else:
+            img = Image.open(resp.raw)
+            if image_format == 'jpg' and img.mode != 'RGB':
+                if 'transparency' in img.info:
+                    img = img.convert('RGBA')
+                img = img.convert('RGB')
+            img.save(os.path.join(dest, f"{file_name}.{image_format}"))
     else:
         log.error(
             "[bold red blink]Unable to download page[/][medium_spring_green]%d[/]"
