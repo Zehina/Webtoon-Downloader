@@ -60,6 +60,7 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
+
 [tool.ruff]
 target-version = "py37"
 line-length = 120
@@ -108,6 +109,9 @@ ignore = [
 
 [tool.ruff.format]
 preview = true
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["lxml"] # lxml is used by BeautifulSoup
 
 [tool.coverage.report]
 skip_empty = true
