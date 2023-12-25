@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import io
 from dataclasses import dataclass, field
 from io import BytesIO
-from pathlib import Path
+from os import PathLike
 from typing import AsyncIterator, NamedTuple
 
 import fitz
@@ -22,17 +23,17 @@ class PageData(NamedTuple):
 
 @dataclass
 class AioPdfWriter:
-    container: Path
+    container: io.BytesIO | PathLike[str]
 
     _doc: fitz.Document = field(init=False)
     _pages_data: list[PageData] = field(init=False)
 
     async def __aenter__(self) -> AioPdfWriter:
+        self._pages_data = []
         self._doc = fitz.open()
         return self
 
     async def write(self, stream: AsyncIterator[bytes], item_name: str) -> int:
-        self._pages_data = []
         bytes_io_stream = BytesIO()
         written = 0
         async for chunk in stream:
@@ -63,13 +64,12 @@ class AioPdfWriter:
         """
         # Sort the stored page data by item name
         self._pages_data.sort(key=lambda x: x[0])
-
         # Add each image to the PDF
         for page in self._pages_data:
             self._add_image_to_pdf(page)
 
         if self._doc.page_count > 0:
-            self._doc.save(str(self.container))
+            self._doc.save(self.container)
         self._doc.close()
 
     def _add_image_to_pdf(self, page_data: PageData) -> None:
