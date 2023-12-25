@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import logging
 import os
-import signal
 import sys
 from logging.handlers import RotatingFileHandler
 from threading import Event
@@ -12,19 +11,11 @@ from rich import traceback
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import (
-    BarColumn,
     Progress,
     ProgressColumn,
-    SpinnerColumn,
     Task,
-    TextColumn,
-    TimeRemainingColumn,
 )
 from rich.text import Text
-
-from webtoon_downloader.cmd.options import Options
-from webtoon_downloader.core.downloader import download_webtoon
-from webtoon_downloader.core.utils import TextExporter
 
 
 class HumanReadableSpeedColumn(ProgressColumn):
@@ -124,54 +115,54 @@ def exit_handler(sig: int, frame: FrameType | None) -> None:
     sys.exit(0)
 
 
-def run() -> None:
-    global progress
-    signal.signal(signal.SIGINT, exit_handler)
-    parser = Options()
-    parser.initialize()
-    try:
-        args = parser.parse()
-    except Exception as exc:
-        console.print(f"[red]Error:[/] {exc}")
-        sys.exit(1)
+# def run() -> None:
+#     global progress
+#     signal.signal(signal.SIGINT, exit_handler)
+#     parser = Options()
+#     parser.initialize()
+#     try:
+#         args = parser.parse()
+#     except Exception as exc:
+#         console.print(f"[red]Error:[/] {exc}")
+#         sys.exit(1)
 
-    series_url = args.url
-    separate = args.separate
-    exporter = TextExporter(args.export_format) if args.export_texts else None
+#     series_url = args.url
+#     separate = args.separate
+#     exporter = TextExporter(args.export_format) if args.export_texts else None
 
-    progress = Progress(
-        TextColumn("{task.description}", justify="right"),
-        BarColumn(bar_width=None),
-        "[progress.percentage]{task.percentage:>3.2f}%",
-        "•",
-        SpinnerColumn(style="progress.data.speed"),
-        HumanReadableSpeedColumn(),
-        "•",
-        TextColumn(
-            "[green]{task.completed:>02d}[/]/[bold green]{task.fields[rendered_total]}[/]",
-            justify="left",
-        ),
-        SpinnerColumn(),
-        "•",
-        TimeRemainingColumn(),
-        transient=True,
-        refresh_per_second=20,
-    )
-    try:
-        download_webtoon(
-            progress,
-            done_event,
-            series_url,
-            args.start,
-            args.end,
-            args.dest,
-            args.images_format,
-            args.latest,
-            separate,
-            exporter,
-        )
-        if exporter:
-            exporter.write_data()
-    except Exception:
-        log.exception("Error while downloading webtoon")
-        sys.exit(1)
+#     progress = Progress(
+#         TextColumn("{task.description}", justify="right"),
+#         BarColumn(bar_width=None),
+#         "[progress.percentage]{task.percentage:>3.2f}%",
+#         "•",
+#         SpinnerColumn(style="progress.data.speed"),
+#         HumanReadableSpeedColumn(),
+#         "•",
+#         TextColumn(
+#             "[green]{task.completed:>02d}[/]/[bold green]{task.fields[rendered_total]}[/]",
+#             justify="left",
+#         ),
+#         SpinnerColumn(),
+#         "•",
+#         TimeRemainingColumn(),
+#         transient=True,
+#         refresh_per_second=20,
+#     )
+#     try:
+#         download_webtoon(
+#             progress,
+#             done_event,
+#             series_url,
+#             args.start,
+#             args.end,
+#             args.dest,
+#             args.images_format,
+#             args.latest,
+#             separate,
+#             exporter,
+#         )
+#         if exporter:
+#             exporter.write_data()
+#     except Exception:
+#         log.exception("Error while downloading webtoon")
+#         sys.exit(1)

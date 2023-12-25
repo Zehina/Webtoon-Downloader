@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup, Tag
 from furl import furl
+
+log = logging.getLogger(__name__)
 
 
 class InvalidHTMLObject(TypeError):
@@ -29,45 +32,62 @@ def _ensure_beautiful_soup(html: str | BeautifulSoup) -> BeautifulSoup:
     return html if isinstance(html, BeautifulSoup) else BeautifulSoup(html, "lxml")
 
 
-@dataclass
+@dataclass(frozen=True)
 class WebtoonMainPageExtractor:
-    """Extractor for the main page of a Webtoon.
+    """Extractor for the main page of a Webtoon. The results are cached for faster lookup
 
     Attributes:
         html: HTML content of the Webtoon main page. (ex: https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95)
     """
 
     html: str | BeautifulSoup
+
     _soup: BeautifulSoup = field(init=False)
+    _title: str = field(init=False)
+    _summary: str = field(init=False)
+    _viewer_url: str = field(init=False)
 
     def __post_init__(self) -> None:
-        self._soup = _ensure_beautiful_soup(self.html)
+        object.__setattr__(self, "_soup", _ensure_beautiful_soup(self.html))
 
     def get_series_title(self) -> str:
         """Extracts the full title series."""
+        if hasattr(self, "_title"):
+            return self._title
         _tag = self._soup.find(class_="subj")
         if not _tag:
             raise ElementNotFoundError("sub")
 
-        return _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
+        title = _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
+        object.__setattr__(self, "_title", title)
+        return title
 
     def get_series_summary(self) -> str:
         """Extracts the series summary."""
+        if hasattr(self, "_summary"):
+            return self._summary
         _tag = self._soup.find(class_="summary")
         if not _tag:
             raise ElementNotFoundError("summary")
 
-        return _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
+        summary = _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
+        object.__setattr__(self, "_summary", summary)
+        return summary
 
     def get_chapter_viewer_url(self) -> str:
         """Extracts the URL of the webtoon chapter reader."""
+        if hasattr(self, "_viewer_url"):
+            return self._viewer_url
         _tag = self._soup.select_one("#_btnEpisode")
         if not _tag:
             raise ElementNotFoundError("_btnEpisode")
 
-        return str(furl(_tag["href"]).remove(args=["episode_no"]))
+        viewer_url = str(furl(_tag["href"]).remove(args=["episode_no"]))
+        object.__setattr__(self, "_viewer_url", viewer_url)
+        return viewer_url
 
 
+# TODO: make this class immutable
 @dataclass
 class WebtoonViewerPageExtractor:
     """Extractor for a viewer page of a Webtoon.
