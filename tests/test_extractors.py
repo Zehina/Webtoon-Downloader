@@ -3,8 +3,7 @@ from dataclasses import dataclass
 import httpx
 import pytest
 
-from webtoon_downloader.core.client import WebtoonClient
-from webtoon_downloader.core.extractor import WebtoonMainPageExtractor
+from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor
 
 
 @dataclass
@@ -65,7 +64,7 @@ test_cases = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("test_case", test_cases, ids=lambda tc: tc.test_id)
 async def test_webtoon_main_page_extractor(test_case: WebtoonTestCase):
-    async with WebtoonClient(http_client=httpx.AsyncClient(http2=True)) as client:
+    async with httpx.AsyncClient(http2=True) as client:
         resp = await client.get(test_case.url)
 
     extractor = WebtoonMainPageExtractor(resp.text)
