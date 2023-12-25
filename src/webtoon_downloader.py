@@ -87,6 +87,7 @@ class TextExporter:
         self.data = { 'chapters': {} }
         self.write_json = export_format in ["json", "all"]
         self.write_text = export_format in ["text", "all"]
+        self.data_is_unchanged = False
 
     def set_chapter_config(self, zeros: int, separate: bool):
         self.separate = separate
@@ -95,31 +96,78 @@ class TextExporter:
     def set_dest(self, dest: str):
         self.dest = dest
 
+    def load_old_info(self):
+        name = os.path.join(self.dest, "info.json")
+        if not os.path.exists(name):
+            return
+        with open(name, "r") as f:
+            self.data = json.load(f)
+        if 'chapters' not in self.data:
+            self.data['chapters'] = {}
+        for c in list(self.data['chapters'].keys()):
+            if type(c) == int:
+                continue
+            if type(c) != str or not c.isdigit():
+                log.warning('Loaded unexpected chapters key "{c}"')
+                continue
+            chapter = self.data['chapters'].pop(c)
+            self.data['chapters'][int(c)] = chapter
+        self.data_is_unchanged = True
+
     def add_series_texts(self, summary: str):
+        self.data_is_unchanged &= ('summary' in self.data
+                and self.data['summary'] == summary)
         self.data['summary'] = summary
         if self.write_text:
-            with open(os.path.join(self.dest, "summary.txt"), "w") as f:
-                f.write(summary + '\n')
+            TextExporter._write_text(os.path.join(self.dest, "summary.txt"), summary)
+
+    def has_chapter_texts(self, chapter: int):
+        result = True
+        if self.write_json:
+            name = os.path.join(self.dest, "info.json")
+            result &= os.path.exists(name)
+            result &= chapter in self.data['chapters']
+        if self.write_text:
+            prefix = self._chapter_prefix(chapter)
+            result &= os.path.exists(prefix + 'title.txt')
+        return result
 
     def add_chapter_texts(self, chapter: int, title: str, notes: str):
-        self.data['chapters'][chapter] = { 'title': title }
+        self.data_is_unchanged &= (chapter in self.data['chapters']
+                and 'title' in self.data['chapters'][chapter]
+                and self.data['chapters'][chapter]['title'] == title
+                and ('notes' not in self.data['chapters'][chapter]) == (notes is None)
+                and (notes is None or self.data['chapters'][chapter]['notes'] == notes))
+        if chapter not in self.data['chapters']:
+            self.data['chapters'][chapter] = { }
+        self.data['chapters'][chapter]['title'] = title
         if notes is not None:
             self.data['chapters'][chapter]['notes'] = notes
+        elif 'notes' in self.data['chapters'][chapter]:
+            self.data['chapters'][chapter].pop('notes')
         if self.write_text:
-            prefix = self.dest
-            if self.separate:
-                prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}")
-            prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}_")
-            with open(prefix + "title.txt", "w") as f:
-                f.write(title + '\n')
+            prefix = self._chapter_prefix(chapter)
+            TextExporter._write_text(prefix + "title.txt", title)
             if notes is not None:
-                with open(prefix + "notes.txt", "w") as f:
-                    f.write(notes + '\n')
+                TextExporter._write_text(prefix + "notes.txt", notes)
 
     def write_data(self):
         if self.write_json:
-            with open(os.path.join(self.dest, "info.json"), "w") as f:
-                json.dump(self.data, f, sort_keys=True)
+            name = os.path.join(self.dest, "info.json")
+            if not self.data_is_unchanged:
+                with open(name, "w") as f:
+                    json.dump(self.data, f, sort_keys=True)
+
+    def _chapter_prefix(self, chapter: int):
+        prefix = self.dest
+        if self.separate:
+            prefix = os.path.join(prefix, f"{chapter:0{self.zeros}d}")
+        return os.path.join(prefix, f"{chapter:0{self.zeros}d}_")
+
+    def _write_text(name: str, text: str):
+        if not os.path.exists(name):
+            with open(name, "w") as f:
+                f.write(text + '\n')
 
 
 ######################## Header Configuration ################################
@@ -451,6 +499,26 @@ def get_img_urls(
     return extract_img_urls(get_chapter_html(session, viewer_url, data_episode_num))
 
 
+def image_exists(dest: str, image_base: str, image_format: str):
+    path = pathlib.Path(dest)
+    if image_format != 'native':
+        file = path / f"{image_base}.{image_format}"
+        return file.exists()
+    else:
+        files = list(path.glob(f"{image_base}.*"))
+        return len(files) > 0
+
+
+def image_prefix_exists(dest: str, image_prefix: str, image_format: str):
+    path = pathlib.Path(dest)
+    if image_format == 'native':
+        pattern = f"{image_prefix}_0*.*"
+    else:
+        pattern = f"{image_prefix}_0*.{image_format}"
+    files = list(path.glob(pattern))
+    return len(files) > 0
+
+
 def download_image(
     chapter_download_task_id: int,
     url: str,
@@ -492,12 +560,16 @@ def download_image(
     page_digits: int
         Number of digits used for the page number inside the chapter
     """
+    file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
+    if image_exists(dest, file_name, image_format):
+        log.debug("Chapter %d: page %d already exists", chapter_number, page_number)
+        progress.update(chapter_download_task_id, advance=1)
+        return
     log.debug("Requesting chapter %d: page %d", chapter_number, page_number)
     resp = requests.get(url, headers=image_headers, stream=True, timeout=5)
     progress.update(chapter_download_task_id, advance=1)
     if resp.status_code == 200:
         resp.raw.decode_content = True
-        file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
         content_type = resp.headers.get('Content-Type')
         if content_type is None:
             log.warning('No Content-Type specified for {file_name}, defaulting to jpg')
@@ -580,6 +652,15 @@ def download_chapter(
     exporter: TextExporter
         object responsible for exporting any texts, optional
     """
+    already_downloaded = (
+        os.path.exists(dest)
+        and image_prefix_exists(dest, f"{chapter_info.chapter_number:0{zeros}d}", images_format)
+        and (exporter is None or exporter.has_chapter_texts(chapter_info.chapter_number))
+    )
+    if already_downloaded:
+        log.info("Chapter %d already present [green]✓", chapter_info.chapter_number)
+        progress.remove_task(chapter_download_task_id)
+        return
     log.debug(
         "[italic red]Accessing[/italic red] chapter %d", chapter_info.chapter_number
     )
@@ -715,6 +796,7 @@ def download_webtoon(
         log.warning("Directory Exists: [#80BBA6]%s[/]", dest)
     if exporter:
         exporter.set_dest(dest)
+        exporter.load_old_info()
         exporter.add_series_texts(summary=get_series_summary(soup))
 
     progress.console.print(
