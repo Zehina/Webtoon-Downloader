@@ -128,7 +128,7 @@ class WebtoonDownloader:
 
             await self._export_data(extractor)
             viewer_url = extractor.get_chapter_viewer_url()
-            chapter_list = await fetcher.get_chapters_details(viewer_url, self.url, 500, 520)
+            chapter_list = await fetcher.get_chapters_details(viewer_url, self.url, 500, 501)
 
             # Semaphore to limit the number of concurrent chapter downloads
             semaphore = asyncio.Semaphore(self.concurrent_chapters)

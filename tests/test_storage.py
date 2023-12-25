@@ -2,13 +2,29 @@ import io
 import os
 import tempfile
 import zipfile
+from typing import AsyncIterator
 
+import fitz
 import pytest
+from PIL import Image
 
-from webtoon_downloader.storage import AioFileBufferedZipWriter, AioZipWriter
+from webtoon_downloader.storage import (
+    AioFileBufferedZipWriter,
+    AioPdfWriter,
+    AioZipWriter,
+)
 
 
-async def async_iter(data: bytes, chunk_size: int = 1024):
+async def async_iter_image(image: Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:
+    with io.BytesIO() as output:
+        image.save(output, format="JPEG")
+        output.seek(0)
+        data = output.read()
+        for i in range(0, len(data), chunk_size):
+            yield data[i : i + chunk_size]
+
+
+async def async_iter(data: bytes, chunk_size: int = 1024) -> AsyncIterator[bytes]:
     for i in range(0, len(data), chunk_size):
         yield data[i : i + chunk_size]
 
@@ -32,6 +48,28 @@ async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZ
         for filename, data in test_files:
             with zip_ref.open(filename, "r") as file:
                 assert data == file.read()
+
+
+@pytest.mark.asyncio
+async def test_pdf_writer():
+    # Create test images
+    test_images = [
+        Image.new("RGB", (100, 100), color="red"),
+        Image.new("RGB", (200, 200), color="green"),
+        Image.new("RGB", (300, 300), color="blue"),
+    ]
+
+    with tempfile.NamedTemporaryFile(prefix="test_pdf", suffix=".pdf") as file:
+        async with AioPdfWriter(file) as writer:
+            for idx, img in enumerate(test_images):
+                await writer.write(async_iter_image(img), f"image_{idx}.jpg")
+
+        with fitz.open(file) as doc:
+            assert len(doc) == len(test_images)  # Check number of pages
+
+            for page_num, img in enumerate(test_images):
+                pix = doc.load_page(page_num).get_pixmap()
+                assert pix.width == img.width and pix.height == img.height
 
 
 @pytest.mark.asyncio
