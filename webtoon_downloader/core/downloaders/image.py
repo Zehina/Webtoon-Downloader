@@ -14,7 +14,17 @@ ImageProgressCallback = Callable[[int], Awaitable[None]]
 Progress callback called for each image download.
 """
 
-ImageDownloadResult = int
+
+@dataclass
+class ImageDownloadResult:
+    """
+    Represents the ImageDownloadResult
+
+    Args:
+        size: Size of the image downloaded/written
+    """
+
+    size: int
 
 
 @dataclass
@@ -26,13 +36,31 @@ class ImageDownloader:
     progress_callback: ImageProgressCallback | None = None
 
     async def run(self, url: str) -> ImageDownloadResult:
+        """
+        Initiates the downloading of an image from a specified URL.
+
+        Args:
+            url: The URL of the image to be downloaded.
+
+        Returns:
+            ImageDownloadResult: The result of the download operation.
+
+        Raises:
+            ImageDownloadError: If an error occurs during the download process.
+        """
         try:
-            return await self._download_image(url)
+            size = await self._download_image(url)
+            return ImageDownloadResult(size=size)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
 
     async def _download_image(self, url: str) -> int:
-        """Download and processes the byte image stream. Raises any HTTP error that might occur, otherwise saves the image to the storage."""
+        """
+        Downloads and processes the byte image stream from a given URL.
+
+        This also applies transformations to the stream, and saves it to the storage.
+
+        """
         async with self.client.stream("GET", url) as response:
             response.raise_for_status()
             response_stream = response.aiter_bytes()
@@ -43,11 +71,13 @@ class ImageDownloader:
 
         for transformer in self.transformers[1:]:
             response_stream = await transformer.transform(response_stream)
-        res = await self.storage.write(response_stream, item_name=self.target)
+        size = await self.storage.write(response_stream, item_name=self.target)
         await self._update_progress()
-        return res
+        return size
 
     async def _update_progress(self) -> None:
-        """Updates the progress of the download if a callback is set."""
+        """
+        Updates the progress of the image download if it is set
+        """
         if self.progress_callback:
             await self.progress_callback(1)

@@ -12,19 +12,40 @@ TextExporterFormat = Literal["text", "json", "all"]
 
 
 class ExportChapterData(TypedDict):
+    """
+    Typed dictionary representing the data structure for a single chapter in an export operation.
+
+    Attributes:
+        title   : The title of the chapter.
+        notes   : Additional notes or text associated with the chapter.
+    """
+
     title: str
     notes: str
 
 
 class ExportData(TypedDict):
+    """
+    Typed dictionary representing the overall data structure for the export operation.
+
+    Attributes:
+        chapters    : A dictionary mapping chapter numbers to their respective data.
+        summary     : A summary or overall text for the series being exported.
+    """
+
     chapters: dict[int, ExportChapterData]
     summary: str
 
 
 @dataclass
 class TextExporter:
-    """Writes text elements to files, either to multiple plain text files
-    or to a single JSON file, depending on selected export format."""
+    """
+    Writes text elements to files, either to multiple plain text files or/and to a single JSON file.
+
+    Attributes:
+        dest            : The destination directory for the exported files.
+        export_format   : The format to export the data ('text', 'json', or 'all').
+    """
 
     export_format: TextExporterFormat
     dest: str | PathLike[str] = field(default_factory=lambda: Path("."))
@@ -42,6 +63,13 @@ class TextExporter:
         self._write_text = self.export_format in ["text", "all"]
 
     async def add_series_texts(self, summary: str | None, directory: str | PathLike[str] | None = None) -> None:
+        """
+        Adds the series summary to the export data.
+
+        Args:
+            summary     : The summary text of the series.
+            directory   : The directory where the summary file will be written. Defaults to the main destination directory.
+        """
         if not summary or not self._write_text:
             return
 
@@ -56,6 +84,15 @@ class TextExporter:
         notes: str,
         directory: str | PathLike[str] | None = None,
     ) -> None:
+        """
+        Adds chapter texts to the export data.
+
+        Args:
+            chapter     : The chapter number.
+            title       : The title of the chapter.
+            notes       : Notes or additional text associated with the chapter.
+            directory   : The directory where the chapter files will be written. Defaults to the main destination directory.
+        """
         self._data["chapters"][chapter] = {"title": title, "notes": notes}
 
         if not self._write_text:
@@ -71,6 +108,12 @@ class TextExporter:
         self,
         directory: str | PathLike[str] | None = None,
     ) -> None:
+        """
+        Writes the collected data to a JSON file if JSON export is enabled.
+
+        Args:
+            directory: The directory where the JSON file will be written. Defaults to the main destination directory.
+        """
         if not self._write_json:
             return
 
@@ -85,7 +128,15 @@ class TextExporter:
         mode: Literal["a", "w"] = "w",
         end: str = "\n",
     ) -> None:
-        """Asynchronously writes the given data and creates the parent path if it doesn not exist"""
+        """
+        Asynchronously writes the given data to a file, creating the parent path if it does not exist.
+
+        Args:
+            target  : The target file path where data will be written.
+            data    : The data to be written to the file.
+            mode    : The file opening mode ('a' for append, 'w' for write).
+            end     : The string to append at the end of the file, typically a newline character.
+        """
         target = Path(target)
         target.parent.mkdir(exist_ok=True, parents=True)
         async with aiofiles.open(target, mode=mode) as f:

@@ -53,10 +53,10 @@ class WebtoonFetcher:
         _chapter_items = _episode_cont.find_all("li")
         chapter_details = [
             ChapterInfo(
-                episode_details.find("span", {"class": "subj"}).text,
-                chapter_number,
-                int(episode_details["data-episode-no"]),
-                episode_details.find("a")["href"],
+                chapter_number=chapter_number,
+                content_url=episode_details.find("a")["href"],
+                title=episode_details.find("span", {"class": "subj"}).text,
+                data_episode_no=int(episode_details["data-episode-no"]),
             )
             for chapter_number, episode_details in enumerate(_chapter_items, start=1)
         ]

@@ -4,7 +4,6 @@ import random
 
 import httpx
 
-# List of user agents
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -15,9 +14,15 @@ USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/106.0.0.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/106.0.0.0",
 ]
+"""
+List of random user agents
+"""
 
 
 def _generate_headers() -> dict[str, str]:
+    """
+    Generates HTTP headers for the webtoon client, including a randomly chosen user agent.
+    """
     return {
         "accept-language": "en-US,en;q=0.9",
         "dnt": "1",
@@ -26,6 +31,12 @@ def _generate_headers() -> dict[str, str]:
 
 
 def get_image_client() -> httpx.AsyncClient:
+    """
+    Creates and returns an asynchronous HTTP client configured for downloading webtoon images.
+
+    The client uses HTTP/2, custom headers including a referer and a randomly selected user agent,
+    and is configured with high limits for maximum connections and keep-alive connections.
+    """
     limits = httpx.Limits(max_connections=200, max_keepalive_connections=200)
     return httpx.AsyncClient(
         limits=limits,
@@ -35,8 +46,3 @@ def get_image_client() -> httpx.AsyncClient:
             **_generate_headers(),
         },
     )
-
-
-if __name__ == "__main__":
-    cl = get_image_client().headers
-    print(cl)

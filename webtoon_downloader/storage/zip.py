@@ -12,7 +12,7 @@ from typing import AsyncIterator, Literal, Union
 import aiofiles
 from typing_extensions import TypeAlias
 
-from .exceptions import StreamWriteError
+from .exceptions import stream_error_handler
 
 ZipWriteMode: TypeAlias = Literal["a", "w"]
 """
@@ -47,7 +47,7 @@ class AioZipWriter:
     utilizes the memory to consume the asynchronous stream before adding them to the ZIP archive.
 
     Attributes:
-        container: The path where the in-memory ZIP archive will be saved upon completion.
+        container   : The path where the in-memory ZIP archive will be saved upon completion.
         mode        : The mode for creating the ZIP archive.
     """
 
@@ -57,10 +57,12 @@ class AioZipWriter:
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _zip_file: zipfile.ZipFile = field(init=False)
 
+    @stream_error_handler
     async def __aenter__(self) -> AioZipWriter:
         self._zip_file = _open_zip_file(self.container, self.mode)
         return self
 
+    @stream_error_handler
     async def write(self, stream: AsyncIterator[bytes], item_name: str) -> int:
         """
         Asynchronously stores the given byte stream as a file in the in-memory ZIP archive.
@@ -85,6 +87,7 @@ class AioZipWriter:
 
         return written
 
+    @stream_error_handler
     async def __aexit__(self, *_: tuple) -> None:
         self._zip_file.close()
 
@@ -107,10 +110,12 @@ class AioFileBufferedZipWriter(AioZipWriter):
     _zip_file: zipfile.ZipFile = field(init=False)
     _temp_files: list[Path] = field(default_factory=list)
 
+    @stream_error_handler
     async def __aenter__(self) -> AioFileBufferedZipWriter:
         self._zip_file = _open_zip_file(self.container, self.mode)
         return self
 
+    @stream_error_handler
     async def write(self, stream: AsyncIterator[bytes], item_name: str) -> int:
         """
         Asynchronously writes the given byte stream to a file within the ZIP archive.
@@ -131,8 +136,6 @@ class AioFileBufferedZipWriter(AioZipWriter):
                     await file.write(chunk)
                     written += len(chunk)
             await self._add_to_zip(temp_file, item_name)
-        except Exception as exc:
-            raise StreamWriteError(temp_file) from exc
         finally:
             temp_file.unlink(missing_ok=True)
 
@@ -141,7 +144,7 @@ class AioFileBufferedZipWriter(AioZipWriter):
     async def _add_to_zip(self, temp_file_path: Path, item_name: str) -> None:
         """
         Asynchronously adds the temporary file to the ZIP archive and deletes it.
-        The Zipfile write method is synchronous, so the lock must be held before using it.
+        The Zipfile write method is synchronous, so the lock must be held before the operation.
         """
 
         def _write_to_zip() -> None:
@@ -154,6 +157,7 @@ class AioFileBufferedZipWriter(AioZipWriter):
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, _write_to_zip)
 
+    @stream_error_handler
     async def __aexit__(self, *_: tuple) -> None:
         self._zip_file.close()
         # Cleanup of temporary files, if any were not handled already

@@ -13,6 +13,7 @@ from webtoon_downloader.storage import (
     AioPdfWriter,
     AioZipWriter,
 )
+from webtoon_downloader.storage.exceptions import StreamWriteError
 
 
 async def async_iter_image(image: Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:
@@ -85,7 +86,6 @@ async def test_zipwriter_buffer(zip_writer: AioZipWriter):
 
 
 @pytest.mark.asyncio
-@pytest.mark.asyncio
 @pytest.mark.parametrize(
     "zip_writer",
     [
@@ -96,3 +96,16 @@ async def test_zipwriter_buffer(zip_writer: AioZipWriter):
 async def test_zipwriter_file(zip_writer: AioZipWriter):
     with tempfile.NamedTemporaryFile(prefix="test_storage", suffix=".zip") as f:
         await _test_zipwriter(f.name, zip_writer)
+
+
+@pytest.mark.asyncio
+async def test_write_raises_stream_write_error():
+    async with AioZipWriter(io.BytesIO()) as writer:
+        with pytest.raises(StreamWriteError):
+            # Passing an invalid file name
+            await writer.write(async_iter(b"some data"), 12)
+
+    with tempfile.TemporaryDirectory(), pytest.raises(StreamWriteError) as dir_path:
+        # Openning a directory should cause an error
+        async with AioZipWriter(dir_path) as writer:
+            await writer.write(async_iter(b"some data"), "test.txt")
