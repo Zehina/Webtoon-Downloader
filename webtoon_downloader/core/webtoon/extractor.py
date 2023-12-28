@@ -97,29 +97,44 @@ class WebtoonViewerPageExtractor:
     """
 
     html: str | BeautifulSoup
+
     _soup: BeautifulSoup = field(init=False)
+    _title: str = field(init=False)
+    _notes: str = field(init=False)
+    _img_urls: list[str] = field(init=False)
 
     def __post_init__(self) -> None:
         self._soup = _ensure_beautiful_soup(self.html)
 
     def get_chapter_title(self) -> str:
         """Extracts the chapter title."""
+        if hasattr(self, "_title"):
+            return self._title
+
         _tag = self._soup.find("h1")
         if not _tag:
             raise ElementNotFoundError("title_h1")
 
-        return _tag.get_text().strip()
+        self._title = _tag.get_text().strip()
+        return self._title
 
     def get_chapter_notes(self) -> str:
         """Extracts the chapter author notes if it exists. Returns an empty string otherwise"""
+        if hasattr(self, "_notes"):
+            return self._notes
+
         _tag = self._soup.find(class_="author_text")
         if not _tag:
             return ""
 
-        return _tag.get_text().strip().replace("\r\n", "\n")
+        self._notes = _tag.get_text().strip().replace("\r\n", "\n")
+        return self._notes
 
     def get_img_urls(self) -> list[str]:
         """Extracts image URLs from the chapter."""
+        if hasattr(self, "_img_urls"):
+            return self._img_urls
+
         _nav = self._soup.find("div", class_="viewer_img _img_viewer_area")
         if not isinstance(_nav, Tag):
             return []
@@ -131,4 +146,5 @@ class WebtoonViewerPageExtractor:
         if not _tags:
             raise ElementNotFoundError("all_img")
 
-        return [tag["data-url"] for tag in _tags]
+        self._img_urls = [tag["data-url"] for tag in _tags]
+        return self._img_urls

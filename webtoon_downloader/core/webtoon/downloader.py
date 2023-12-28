@@ -8,14 +8,13 @@ from pathlib import Path
 from typing import Awaitable, Callable, Literal, Union
 
 import httpx
+from rich import traceback
+from rich.pretty import pprint
 from typing_extensions import TypeAlias
 
 from webtoon_downloader.core import file as fileutil
 from webtoon_downloader.core import webtoon
-from webtoon_downloader.core.downloaders.image import (
-    ImageDownloader,
-    ImageProgressCallback,
-)
+from webtoon_downloader.core.downloaders.image import ImageDownloader
 from webtoon_downloader.core.exceptions import ChapterDownloadError
 from webtoon_downloader.core.webtoon.exporter import TextExporter
 from webtoon_downloader.core.webtoon.extractor import (
@@ -23,9 +22,14 @@ from webtoon_downloader.core.webtoon.extractor import (
     WebtoonViewerPageExtractor,
 )
 from webtoon_downloader.core.webtoon.fetchers import WebtoonFetcher
-from webtoon_downloader.core.webtoon.models import ChapterInfo
+from webtoon_downloader.core.webtoon.models import ChapterInfo, PageInfo
+from webtoon_downloader.core.webtoon.namer import (
+    FileNameGenerator,
+    NonSeparateFileNameGenerator,
+    SeparateFileNameGenerator,
+)
 from webtoon_downloader.storage import (
-    AioFileWriter,
+    AioFolderWriter,
     AioPdfWriter,
     AioWriter,
     AioZipWriter,
@@ -44,103 +48,92 @@ Progress callback called for each chapter download.
 DownloadResult: TypeAlias = Union[str, Path]
 StorageType: TypeAlias = Literal["file", "zip", "cbz", "pdf"]
 
-# TODO: make seperate option work
+# FileNameMutator: TypeAlias = Callable[[WebtoonInfo, ChapterInfo, Union[PageInfo, None]], str]
 
 
 @dataclass
 class ChapterDownloader:
     client: httpx.AsyncClient
-    directory: str | PathLike[str]
-    chapter_info: ChapterInfo
-    writer: AioWriter
-    exporter: TextExporter | None = None
-    progress_callback: ImageProgressCallback | None = None
+    image_downloader: ImageDownloader
+    file_name_generator: FileNameGenerator
 
-    async def run(self) -> list[DownloadResult | BaseException]:
+    exporter: TextExporter | None = None
+    progress_callback: ChapterProgressCallback | None = None
+
+    async def run(
+        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter
+    ) -> list[DownloadResult | BaseException]:
         try:
             tasks: list[asyncio.Task] = []
-            resp = await self.client.get(self.chapter_info.content_url)
+            resp = await self.client.get(chapter_info.viewer_url)
             extractor = WebtoonViewerPageExtractor(resp.text)
-            urls = extractor.get_img_urls()
-            num_digits = len(str(len(urls)))
-            await self._export_data(extractor)
-            async with self.writer as writer:
-                for n, url in enumerate(urls):
-                    tasks.append(self._create_img_download_task(self.client, url, f"{n:0{num_digits}d}.jpg", writer))
-                return await asyncio.gather(*tasks, return_exceptions=True)
+            img_urls = extractor.get_img_urls()
+
+            chapter_directory = self.file_name_generator.get_chapter_directory(chapter_info)  # pylint: disable=assignment-from-no-return
+            export_dir = directory / chapter_directory
+            await self._export_data(extractor, chapter_info, export_dir, len(str(chapter_info.total_chapters)))
+
+            async with storage:
+                n_urls = len(img_urls)
+                for n, url in enumerate(img_urls, start=1):
+                    page = PageInfo(n, url, n_urls, chapter_info)
+                    name = str(chapter_directory / self.file_name_generator.get_page_filename(page))
+                    task = asyncio.create_task(self.image_downloader.run(url, name, storage))
+                    tasks.append(task)
+                res = await asyncio.gather(*tasks, return_exceptions=False)
+            if self.progress_callback:
+                await self.progress_callback(1)
+
+            return res
         except Exception as exc:
-            raise ChapterDownloadError(self.chapter_info.content_url, exc, chapter_info=self.chapter_info) from exc
+            raise ChapterDownloadError(chapter_info.viewer_url, exc, chapter_info=chapter_info) from exc
 
-    def _create_img_download_task(
+    async def _export_data(
         self,
-        client: httpx.AsyncClient,
-        url: str,
-        file_name: str,
-        container: AioWriter,
-    ) -> asyncio.Task:
-        async def task() -> Path:
-            await ImageDownloader(
-                client,
-                file_name,
-                container,
-                transformers=[AioImageFormatTransformer("JPEG")],
-                progress_callback=self.progress_callback,
-            ).run(url)
-            return Path(Path(self.directory) / file_name)
-
-        return asyncio.create_task(task())
-
-    async def _export_data(self, extractor: WebtoonViewerPageExtractor) -> None:
+        extractor: WebtoonViewerPageExtractor,
+        chapter_info: ChapterInfo,
+        directory: str | PathLike[str],
+        padding: int,
+    ) -> None:
         if not self.exporter:
             return
-        await self.exporter.add_chapter_texts(
-            chapter=self.chapter_info.chapter_number,
-            title=extractor.get_chapter_title(),
+        await self.exporter.add_chapter_details(
+            chapter=chapter_info,
             notes=extractor.get_chapter_notes(),
-            directory=self.directory,
+            padding=padding,
+            directory=directory,
         )
 
 
 @dataclass
 class WebtoonDownloader:
     url: str
-    storage_type: StorageType = "file"
+    start_chapter: int
+    end_chapter: int
+    chapter_downloader: ChapterDownloader
+    storage_type: StorageType
 
     concurrent_chapters: int = DEFAULT_CHAPTER_LIMIT
     directory: str | PathLike[str] | None = None
     exporter: TextExporter | None = None
-    image_progress_callback: ImageProgressCallback | None = None
-    chapter_progress_callback: ChapterProgressCallback | None = None
 
     _directory: str | PathLike[str] = field(init=False)
 
     async def run(self) -> list[DownloadResult | BaseException]:
-        headers = {
-            "accept-language": "en-US,en;q=0.9",
-            "dnt": "1",
-            "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 OPR/106.0.0.0",
-        }
-        async with httpx.AsyncClient(headers=headers) as client:
+        async with webtoon.client.new() as client:
             fetcher = WebtoonFetcher(client)
+            chapter_list = await fetcher.get_chapters_details(self.url, self.start_chapter, self.end_chapter)
+
             resp = await client.get(self.url)
             extractor = WebtoonMainPageExtractor(resp.text)
             self._directory = self.directory or fileutil.slugify_name(extractor.get_series_title())
-
             await self._export_data(extractor)
-            viewer_url = extractor.get_chapter_viewer_url()
-            chapter_list = await fetcher.get_chapters_details(viewer_url, self.url, 500, 501)
 
             # Semaphore to limit the number of concurrent chapter downloads
             semaphore = asyncio.Semaphore(self.concurrent_chapters)
-            image_client = webtoon.client.get_image_client()
-
             tasks = []
             for chapter_info in chapter_list:
-                task = self._create_chapter_download_task(
-                    image_client,
-                    chapter_info,
-                    semaphore,
-                )
+                task = self._create_chapter_download_task(chapter_info, semaphore)
                 tasks.append(task)
 
             results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -148,28 +141,11 @@ class WebtoonDownloader:
                 await self.exporter.write_data(self._directory)
             return results
 
-    def _create_chapter_download_task(
-        self,
-        client: httpx.AsyncClient,
-        chapter_info: ChapterInfo,
-        semaphore: asyncio.Semaphore,
-    ) -> asyncio.Task:
+    def _create_chapter_download_task(self, chapter_info: ChapterInfo, semaphore: asyncio.Semaphore) -> asyncio.Task:
         async def task() -> list[DownloadResult | BaseException]:
             async with semaphore:
-                chapter_downloader = ChapterDownloader(
-                    client=client,
-                    directory=self._directory,
-                    chapter_info=chapter_info,
-                    exporter=self.exporter,
-                    writer=(await self._get_storage(chapter_info)),
-                    progress_callback=self.image_progress_callback,
-                )
-
-                res = await chapter_downloader.run()
-                if self.chapter_progress_callback:
-                    await self.chapter_progress_callback(1)
-
-                return res
+                storage = await _get_storage(self._directory, self.storage_type, chapter_info)
+                return await self.chapter_downloader.run(chapter_info, self._directory, storage)
 
         return asyncio.create_task(task())
 
@@ -179,22 +155,41 @@ class WebtoonDownloader:
 
         await self.exporter.add_series_texts(summary=extractor.get_series_summary(), directory=self._directory)
 
-    async def _get_storage(self, chapter_info: ChapterInfo) -> AioWriter:
-        _dir = Path(self._directory)
-        dest = str(chapter_info.chapter_number)
-        if self.storage_type in ["zip", "cbz"]:
-            return AioZipWriter(_dir / f"{dest}.{self.storage_type}")
-        elif self.storage_type == "pdf":
-            return AioPdfWriter(_dir / f"{dest}.pdf")
-        else:
-            return AioFileWriter(_dir / dest)
+
+async def _get_storage(
+    directory: str | PathLike[str],
+    storage_type: StorageType,
+    chapter_info: ChapterInfo,
+) -> AioWriter:
+    _dir = Path(directory)
+    dest = str(chapter_info.number)
+    if storage_type in ["zip", "cbz"]:
+        return AioZipWriter(_dir / f"{dest}.{storage_type}")
+    elif storage_type == "pdf":
+        return AioPdfWriter(_dir / f"{dest}.pdf")
+    else:
+        return AioFolderWriter(_dir)
+
+
+# def _get_file_name_mutator(separate: bool) -> FileNameMutator:
+#     def _file_name_mutator(webtoon_info: WebtoonInfo, chapter_info: ChapterInfo, page_info: PageInfo | None)-> str:
+#         chapter_name = f"{chapter_info.number:0{len(str(webtoon_info.total_chapters))}d}"
+#         if not page_info:
+#             return str(Path(chapter_name)) if separate else ""
+
+#         name = f"{page_info.page_number:0{len(str(page_info.total_pages))}d}" if page_info else ""
+#         if separate:
+#             return str(Path(chapter_name) / name)
+#         else:
+#             return f"{chapter_name}_{name}"
+
+#     return _file_name_mutator
 
 
 async def main() -> None:
     n_chapters = 0
     n_images = 0
-    from rich import traceback
-
+    separate = True
     traceback.install()
 
     async def _chapter_progress(progress: int) -> None:
@@ -207,15 +202,30 @@ async def main() -> None:
         print(f"Image progress updated by: {progress}")
         n_images += 1
 
+    file_name_generator = NonSeparateFileNameGenerator() if separate else SeparateFileNameGenerator()
+    image_downloader = ImageDownloader(
+        client=webtoon.client.new_image_client(),
+        transformers=[AioImageFormatTransformer("JPEG")],
+        progress_callback=_image_progress,
+    )
+
+    exporter = TextExporter("all")
+    chapter_downloader = ChapterDownloader(
+        client=webtoon.client.new(),
+        exporter=exporter,
+        progress_callback=_chapter_progress,
+        image_downloader=image_downloader,
+        file_name_generator=file_name_generator,
+    )
     downloader = WebtoonDownloader(
         url="https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95",
-        storage_type="pdf",
-        exporter=TextExporter("all"),
-        image_progress_callback=_image_progress,
-        chapter_progress_callback=_chapter_progress,
+        start_chapter=9,
+        end_chapter=10,
+        chapter_downloader=chapter_downloader,
+        storage_type="file",
+        exporter=exporter,
     )
     results = await downloader.run()
-    from rich.pretty import pprint
 
     if isinstance(results[0], Exception):
         raise results[0]

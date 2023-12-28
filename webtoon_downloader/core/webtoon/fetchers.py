@@ -2,63 +2,114 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Literal, Sequence
 
 import httpx
 from bs4 import BeautifulSoup, Tag
+from furl import furl
+from typing_extensions import TypeAlias
 
+from webtoon_downloader.core.exceptions import (
+    ChapterDataEpisodeNumberFetchError,
+    ChapterTitleFetchError,
+    ChapterURLFetchError,
+    SeriesTitleFetchError,
+)
+from webtoon_downloader.core.webtoon import client
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 
 log = logging.getLogger(__name__)
+
+
+_WebtoonDomains: TypeAlias = Literal["m", "www"]
+"""valid webtoon subdomains"""
 
 
 @dataclass
 class WebtoonFetcher:
     client: httpx.AsyncClient
 
-    async def get_first_chapter_episode_no(self, series_url: str) -> int:
-        response = await self.client.get(series_url)
-        soup = BeautifulSoup(response.text, "html.parser")
-        _tag = soup.find("a", id="_btnEpisode")
-        if not isinstance(_tag, Tag):
-            return -1
+    def _convert_url_domain(self, series_url: str, target_subdomain: _WebtoonDomains = "m") -> str:
+        """Converts the provided Webtoon URL to the specified subdomain (default 'm')."""
+        f = furl(series_url)
+        domain_parts = f.host.split(".")
+        if target_subdomain not in domain_parts:
+            domain_parts.insert(0, target_subdomain)
+        else:
+            index = domain_parts.index(target_subdomain)
+            domain_parts[index] = "www" if target_subdomain == "m" else "m"
 
-        href = str(_tag.get("href"))
-        if not href:
-            return -1
+        f.host = ".".join(domain_parts)
+        return str(f.url)
 
-        episode_no = href.rsplit("episode_no=", maxsplit=1)[-1]
-        if episode_no.isdigit():
-            return int(episode_no)
+    def _get_viewer_url(self, tag: Tag) -> str:
+        """Returns the viewer URL from the scrapped tag object"""
+        viewer_url_tag = tag.find("a")
+        if not isinstance(viewer_url_tag, Tag):
+            raise ChapterURLFetchError(viewer_url_tag)
+        return self._convert_url_domain(str(viewer_url_tag["href"]), target_subdomain="www")
 
-        # Fallback method: Get the first episode from the list
-        response = await self.client.get(f"{series_url}&page=9999")
-        soup = BeautifulSoup(response.text, "html.parser")
-        return min(int(episode["data-episode-no"]) for episode in soup.find_all("li", {"class": "_episodeItem"}))
+    def _get_chapter_title(self, tag: Tag) -> str:
+        """Returns the chapter title from the scrapped tag object"""
+        chapter_details_tag = tag.find("p", class_="sub_title")
+        if not isinstance(chapter_details_tag, Tag):
+            raise ChapterTitleFetchError(chapter_details_tag)
+        chapter_details_tag = chapter_details_tag.find("span", class_="ellipsis")
+        if not isinstance(chapter_details_tag, Tag):
+            raise ChapterTitleFetchError(chapter_details_tag)
+        return chapter_details_tag.text
+
+    def _get_data_episode_num(self, tag: Tag) -> int:
+        """Returns the chapter data episode number from the scrapped tag object"""
+        data_episode_no_tag = tag["data-episode-no"]
+        if not isinstance(data_episode_no_tag, str):
+            raise ChapterDataEpisodeNumberFetchError(data_episode_no_tag)
+        return int(data_episode_no_tag)
+
+    def _get_series_title(self, soup: BeautifulSoup) -> str:
+        """Returns the series title from the scrapped tag object"""
+        series_title_tag = soup.find("p", class_="subj")
+        if not isinstance(series_title_tag, Tag):
+            raise SeriesTitleFetchError(series_title_tag)
+        return series_title_tag.text
 
     async def get_chapters_details(
         self,
-        viewer_url: str,
         series_url: str,
         start_chapter: int = 1,
         end_chapter: int | None = None,
     ) -> list[ChapterInfo]:
-        first_chapter = await self.get_first_chapter_episode_no(series_url)
-        episode_url = f"{viewer_url}&episode_no={first_chapter}"
-        response = await self.client.get(episode_url)
-        soup = BeautifulSoup(response.text, "lxml")
-        _episode_cont = soup.find("div", class_="episode_cont")
-        if not isinstance(_episode_cont, Tag):
-            return []
+        """
+        fetches and parses chapter details from a given Webtoon series URL.
 
-        _chapter_items = _episode_cont.find_all("li")
-        chapter_details = [
-            ChapterInfo(
-                chapter_number=chapter_number,
-                content_url=episode_details.find("a")["href"],
-                title=episode_details.find("span", {"class": "subj"}).text,
-                data_episode_no=int(episode_details["data-episode-no"]),
+        This method retrieves chapter information, including chapter numbers, URLs, titles, and total chapter count.
+
+        Args:
+            series_url      : The URL of the Webtoon series from which to fetch chapter details.
+            start_chapter   : The starting chapter number from which to begin fetching details.
+            end_chapter     : chapter number up to which details should be fetched. If None, fetches all chapters up to the last available.
+
+        Returns:
+            A list of ChapterInfo objects containing details for each chapter.
+        """
+        mobile_url = self._convert_url_domain(series_url)
+        response = await self.client.get(
+            mobile_url, headers={**self.client.headers, "user-agent": client.get_mobile_ua()}
+        )
+        soup = BeautifulSoup(response.text, "html.parser")
+        chapter_items: Sequence[Tag] = soup.findAll("li", class_="_episodeItem")
+        series_title = self._get_series_title(soup)
+
+        chapter_details: list[ChapterInfo] = []
+        for chapter_number, chapter_detail in enumerate(chapter_items[::-1], start=1):
+            chapter_info = ChapterInfo(
+                number=chapter_number,
+                viewer_url=self._get_viewer_url(chapter_detail),
+                title=self._get_chapter_title(chapter_detail),
+                data_episode_no=self._get_data_episode_num(chapter_detail),
+                total_chapters=len(chapter_items),
+                series_title=series_title,
             )
-            for chapter_number, episode_details in enumerate(_chapter_items, start=1)
-        ]
+            chapter_details.append(chapter_info)
 
         return chapter_details[int(start_chapter or 1) - 1 : end_chapter]

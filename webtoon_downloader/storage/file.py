@@ -11,7 +11,7 @@ from .exceptions import stream_error_handler
 
 
 @dataclass
-class AioFileWriter:
+class AioFolderWriter:
     """
     Asynchronous file writer for handling byte streams and writing them to files.
 
@@ -27,7 +27,7 @@ class AioFileWriter:
         self._container = Path(self.container)
 
     @stream_error_handler
-    async def __aenter__(self) -> AioFileWriter:
+    async def __aenter__(self) -> AioFolderWriter:
         self._container.mkdir(parents=True, exist_ok=True)
         return self
 
@@ -46,8 +46,8 @@ class AioFileWriter:
         Raises:
             StreamWriteError: If an error occurs during writing to the stream.
         """
-        self._container.mkdir(parents=True, exist_ok=True)
         full_path = self._container / item_name
+        full_path.parent.mkdir(parents=True, exist_ok=True)
         written = 0
         async with aiofiles.open(full_path, mode="wb") as file:
             async for chunk in stream:

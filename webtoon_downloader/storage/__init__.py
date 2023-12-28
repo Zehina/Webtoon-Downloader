@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import AsyncIterator, Protocol, runtime_checkable
 
 from .exceptions import StreamWriteError
-from .file import AioFileWriter
+from .file import AioFolderWriter
 from .pdf import AioPdfWriter
 from .zip import AioFileBufferedZipWriter, AioZipWriter
 
@@ -45,7 +45,7 @@ class AioWriter(Protocol):
 
 
 __all__ = [
-    "AioFileWriter",
+    "AioFolderWriter",
     "AioPdfWriter",
     "AioZipWriter",
     "AioFileBufferedZipWriter",

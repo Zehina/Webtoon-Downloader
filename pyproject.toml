@@ -103,12 +103,10 @@ select = [
     "TRY",
 ]
 ignore = [
-    # LineTooLong
-    "E501",
-    # DoNotAssignLambda
-    "E731",
-    # NonCryptographicRandomUsage
-    "S311",
+    "E501",   # line-too-long
+    "E731",   # lambda-assignment
+    "S311",   # suspicious-non-cryptographic-random-usage
+    "TRY300", # try-consider-else
 ]
 
 [tool.ruff.format]

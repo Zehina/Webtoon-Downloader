@@ -63,7 +63,7 @@ test_cases = [
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("test_case", test_cases, ids=lambda tc: tc.test_id)
-async def test_webtoon_main_page_extractor(test_case: WebtoonTestCase):
+async def test_webtoon_main_page_extractor(test_case: WebtoonTestCase) -> None:
     async with httpx.AsyncClient(http2=True) as client:
         resp = await client.get(test_case.url)
 

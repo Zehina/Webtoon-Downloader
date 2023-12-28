@@ -5,6 +5,7 @@ from PIL import Image
 
 from webtoon_downloader.transformers.image import (
     AioImageFormatTransformer,
+    ImageFormats,
     _bytesio_to_async_gen,
 )
 
@@ -19,7 +20,7 @@ from webtoon_downloader.transformers.image import (
         ("JPEG", "JPEG"),
     ],
 )
-async def test_image_format_transformer(original_format: str, target_format: str):
+async def test_image_format_transformer(original_format: str, target_format: ImageFormats) -> None:
     # Create a sample image in memory
     original_image = Image.new("RGB", (100, 100), color="red")
     original_stream = io.BytesIO()
@@ -31,7 +32,7 @@ async def test_image_format_transformer(original_format: str, target_format: str
 
     # Transform image to PNG
     transformer = AioImageFormatTransformer(target_format)
-    transformed_stream = await transformer.transform(async_image_stream)
+    transformed_stream, _ = await transformer.transform(async_image_stream, "test")
 
     # Verify transformation
     transformed_bytes_io = io.BytesIO()

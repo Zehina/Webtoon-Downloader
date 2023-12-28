@@ -8,6 +8,8 @@ from typing import Literal, TypedDict
 
 import aiofiles
 
+from webtoon_downloader.core.webtoon.models import ChapterInfo
+
 TextExporterFormat = Literal["text", "json", "all"]
 
 
@@ -49,7 +51,6 @@ class TextExporter:
 
     export_format: TextExporterFormat
     dest: str | PathLike[str] = field(default_factory=lambda: Path("."))
-    zeros: int = 0
 
     _dest: Path = field(init=False)
     _data: ExportData = field(init=False)
@@ -77,32 +78,32 @@ class TextExporter:
         directory = Path(directory) if directory else self._dest
         await self._aio_write(directory / "summary.txt", summary)
 
-    async def add_chapter_texts(
+    async def add_chapter_details(
         self,
-        chapter: int,
-        title: str,
+        chapter: ChapterInfo,
         notes: str,
+        padding: int = 0,
         directory: str | PathLike[str] | None = None,
     ) -> None:
         """
         Adds chapter texts to the export data.
 
         Args:
-            chapter     : The chapter number.
-            title       : The title of the chapter.
+            chapter     : The chapter info object.
             notes       : Notes or additional text associated with the chapter.
+            padding     : 0 padding to add to generated file.
             directory   : The directory where the chapter files will be written. Defaults to the main destination directory.
         """
-        self._data["chapters"][chapter] = {"title": title, "notes": notes}
+        self._data["chapters"][chapter.number] = {"title": chapter.title, "notes": notes}
 
         if not self._write_text:
             return
 
         directory = Path(directory) if directory else self._dest
-        await self._aio_write(directory / f"{chapter:0{self.zeros}d}_title.txt", title)
+        await self._aio_write(directory / f"{chapter.number:0{padding}d}_title.txt", chapter.title)
 
         if notes:
-            await self._aio_write(directory / f"{chapter:0{self.zeros}d}_notes.txt", notes)
+            await self._aio_write(directory / f"{chapter.number:0{padding}d}_notes.txt", notes)
 
     async def write_data(
         self,

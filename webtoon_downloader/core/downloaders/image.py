@@ -7,7 +7,7 @@ import httpx
 
 from webtoon_downloader.core.exceptions import ImageDownloadError
 from webtoon_downloader.storage import AioWriter
-from webtoon_downloader.transformers.image import AioImageTransformer
+from webtoon_downloader.transformers.base import AioImageTransformer
 
 ImageProgressCallback = Callable[[int], Awaitable[None]]
 """
@@ -21,26 +21,27 @@ class ImageDownloadResult:
     Represents the ImageDownloadResult
 
     Args:
-        size: Size of the image downloaded/written
+        name: Name of downloaded image.
+        size: Size of the image downloaded/written.
     """
 
+    name: str
     size: int
 
 
 @dataclass
 class ImageDownloader:
     client: httpx.AsyncClient
-    target: str
-    storage: AioWriter
     transformers: list[AioImageTransformer] = field(default_factory=list)
     progress_callback: ImageProgressCallback | None = None
 
-    async def run(self, url: str) -> ImageDownloadResult:
+    async def run(self, url: str, target: str, storage: AioWriter) -> ImageDownloadResult:
         """
         Initiates the downloading of an image from a specified URL.
 
         Args:
-            url: The URL of the image to be downloaded.
+            url       : The URL of the image to be downloaded.
+            name      : The target name of the image. Note: The extension can be mutated by the image downloader.
 
         Returns:
             ImageDownloadResult: The result of the download operation.
@@ -49,31 +50,33 @@ class ImageDownloader:
             ImageDownloadError: If an error occurs during the download process.
         """
         try:
-            size = await self._download_image(url)
-            return ImageDownloadResult(size=size)
+            return await self._download_image(self.client, url, target, storage)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
 
-    async def _download_image(self, url: str) -> int:
+    async def _download_image(
+        self, client: httpx.AsyncClient, url: str, target: str, storage: AioWriter
+    ) -> ImageDownloadResult:
         """
         Downloads and processes the byte image stream from a given URL.
 
         This also applies transformations to the stream, and saves it to the storage.
 
         """
-        async with self.client.stream("GET", url) as response:
+        async with client.stream("GET", url) as response:
             response.raise_for_status()
             response_stream = response.aiter_bytes()
             # No need to keep the stream open whilst performing all transformations
             # Better to send the stream to the first transformer then close the client stream
             if len(self.transformers) > 0:
-                response_stream = await self.transformers[0].transform(response_stream)
+                response_stream, target = await self.transformers[0].transform(response_stream, target)
 
         for transformer in self.transformers[1:]:
-            response_stream = await transformer.transform(response_stream)
-        size = await self.storage.write(response_stream, item_name=self.target)
+            response_stream, target = await transformer.transform(response_stream, target)
+
+        size = await storage.write(response_stream, target)
         await self._update_progress()
-        return size
+        return ImageDownloadResult(target, size)
 
     async def _update_progress(self) -> None:
         """

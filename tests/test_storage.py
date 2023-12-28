@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import os
 import tempfile
@@ -16,9 +18,9 @@ from webtoon_downloader.storage import (
 from webtoon_downloader.storage.exceptions import StreamWriteError
 
 
-async def async_iter_image(image: Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:
+async def async_iter_image(image: Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:  # type ignore[valid-type]
     with io.BytesIO() as output:
-        image.save(output, format="JPEG")
+        image.save(output, format="JPEG")  # type: ignore[attr-defined]
         output.seek(0)
         data = output.read()
         for i in range(0, len(data), chunk_size):
@@ -30,7 +32,7 @@ async def async_iter(data: bytes, chunk_size: int = 1024) -> AsyncIterator[bytes
         yield data[i : i + chunk_size]
 
 
-async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZipWriter):
+async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZipWriter) -> None:
     test_files = [
         ("test.txt", b"Through Heaven and Earth, I Alone am the Honored One."),
         ("唯", "天上天下 唯我独尊".encode()),
@@ -52,7 +54,7 @@ async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZ
 
 
 @pytest.mark.asyncio
-async def test_pdf_writer():
+async def test_pdf_writer() -> None:
     # Create test images
     test_images = [
         Image.new("RGB", (100, 100), color="red"),
@@ -93,13 +95,13 @@ async def test_zipwriter_buffer(zip_writer: AioZipWriter):
         AioFileBufferedZipWriter,
     ],
 )
-async def test_zipwriter_file(zip_writer: AioZipWriter):
+async def test_zipwriter_file(zip_writer: AioZipWriter) -> None:
     with tempfile.NamedTemporaryFile(prefix="test_storage", suffix=".zip") as f:
         await _test_zipwriter(f.name, zip_writer)
 
 
 @pytest.mark.asyncio
-async def test_write_raises_stream_write_error():
+async def test_write_raises_stream_write_error() -> None:
     async with AioZipWriter(io.BytesIO()) as writer:
         with pytest.raises(StreamWriteError):
             # Passing an invalid file name
