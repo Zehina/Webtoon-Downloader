@@ -45,6 +45,10 @@ class Options():
                             help='image format of downloaded images, available: '
                                  '(native, png, jpg)',
                             choices=['native', 'jpg', 'png'], default='native')
+        self.parser.add_argument('--export-extra-media', required=False,
+                            help='download extra media like overview images, '
+                            'thumbnails or music',
+                            action='store_true', default=False)
         self.parser.add_argument('--seperate', required=False,
                             help='[DEPRECATED] download each chapter in separate folders',
                             action='store_true', default=False)

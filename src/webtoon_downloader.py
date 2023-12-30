@@ -1,8 +1,10 @@
+import binascii
 import concurrent
 import itertools
 import json
 import logging
 import math
+import m3u8
 import os
 import pathlib
 import queue
@@ -11,6 +13,7 @@ import shutil
 import signal
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from Crypto.Cipher import AES
 from dataclasses import dataclass, field
 from logging.handlers import RotatingFileHandler
 from threading import Event
@@ -51,11 +54,28 @@ class ChapterInfo:
     """Chapter number referenced by webtoon server"""
     content_url: str
     """Chapter URL"""
+    thumbnail_url: str
+    """Thumbnail URL"""
 
     sort_index: int = field(init=False, repr=False)
 
     def __post_init__(self):
         object.__setattr__(self, "sort_index", self.chapter_number)
+
+
+@dataclass(order=True, frozen=True)
+class MusicInfo:
+    start: int
+    """Image to start playback on"""
+    end: int
+    """Image to end playback on"""
+    audioId: str
+    """ID of audio-stream"""
+
+    sort_index: int = field(init=False, repr=False)
+
+    def __post_init__(self):
+        object.__setattr__(self, "sort_index", self.start)
 
 
 class ThreadPoolExecutorWithQueueSizeLimit(ThreadPoolExecutor):
@@ -282,6 +302,93 @@ def get_series_summary(html: Union[str, BeautifulSoup]) -> str:
     return _html.find(class_="summary").get_text(separator=" ").replace("\n", "").replace("\t", "")
 
 
+def get_background_url(style: str):
+    """
+    Extracts the URL of the background image from a CSS style declaration.
+
+    Arguments:
+    ----------
+    style : the CSS style to parse
+
+    Returns:
+    --------
+        The found URL or None if not found.
+    """
+    m = re.match('background:[^;]*url\((?P<URL>[^\)]*)\)', style)
+    if m is None:
+        return None
+    return m.group('URL')
+
+
+def get_series_background(html: Union[str, BeautifulSoup]) -> str:
+    """
+    Extracts the URL of the series background image from the html of the series
+    overview page.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped series overview page, passed either as a raw
+           string or a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+        The URL of the background image or None if not found.
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    node =  _html.find('div', class_='detail_bg')
+    if node is None or 'style' not in node.attrs:
+        return None
+    return get_background_url(node.attrs['style'])
+
+
+def get_series_banner(html: Union[str, BeautifulSoup]) -> str:
+    """
+    Extracts the URL of the series banner image from the html of the series
+    overview page.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped series overview page, passed either as a raw
+           string or a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+        The URL of the banner image or None if not found.
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    node =  _html.find('span', class_='thmb')
+    if node is None:
+        return None
+    node =  node.find('img')
+    if node is None:
+        return None
+    return node.attrs['src']
+
+
+def get_series_thumbnail(html: Union[str, BeautifulSoup]) -> str:
+    """
+    Extracts the URL of the series thumbnail image from the html of the series
+    overview page.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped series overview page, passed either as a raw
+           string or a bs4.BeautifulSoup object
+
+    Returns:
+    --------
+        The URL of the thumbnail image or None if not found.
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    node =  _html.find('div', class_='detail_body')
+    if node is None or 'style' not in node.attrs:
+        return None
+    return get_background_url(node.attrs['style'])
+
+
 def get_chapter_title(html: Union[str, BeautifulSoup]) -> str:
     """
     Extracts the chapter title from the html of the chapter.
@@ -320,6 +427,45 @@ def get_chapter_notes(html: Union[str, BeautifulSoup]) -> str:
         return None
     else:
         return node.get_text().strip().replace("\r\n", "\n")
+
+
+def get_chapter_music(html: Union[str, BeautifulSoup], img_urls: List[str]
+    ) -> List[MusicInfo]:
+    """
+    Extracts the music to play in a chapter from the html of the chapter.
+
+    Arguments:
+    ----------
+
+    html : the html body of the scraped chapter, passed either as a raw string or
+           a bs4.BeautifulSoup object
+
+    img_urls : list of image URLs, needed to detect start and end of music playback
+
+    Returns:
+    --------
+        List of music to play, empty if none found.
+    """
+    _html = html if isinstance(html, BeautifulSoup) else BeautifulSoup(html)
+    script_tags = _html.find_all('script')
+    script_texts = map(lambda tag: tag.text, script_tags)
+    audio_scripts = filter(lambda txt: 'window.__audioProperties__' in txt,
+                           script_texts)
+    rx = re.compile('^\s*episodeBgmList\s*:\s*(?P<json>.*),\s*$', re.MULTILINE)
+    rx_matches = map(lambda txt: rx.search(txt), audio_scripts)
+    data_texts = map(lambda m: m.group('json'), rx_matches)
+    data_list = map(lambda txt: json.loads(txt), data_texts)
+    data = list(itertools.chain(*data_list))
+    def convert(data):
+        audioId = data['audioId']
+        start_url = data['playImageUrl']
+        end_url = data['stopImageUrl']
+        def idx(url, dflt):
+            if len(url) == 0:
+                return dflt
+            return next((i for i, e in enumerate(img_urls) if url in e), dflt)
+        return MusicInfo(idx(start_url, 0), idx(end_url, len(img_urls)-1), audioId)
+    return list(map(convert, data))
 
 
 def get_chapter_viewer_url(html: Union[str, BeautifulSoup]) -> str:
@@ -421,6 +567,7 @@ def get_chapters_details(
             chapter_number,
             int(episode_details["data-episode-no"]),
             episode_details.find("a")["href"],
+            episode_details.find("span", class_="thmb").find("img")["data-url"]
         )
         for chapter_number, episode_details in enumerate(
             soup.find("div", class_="episode_cont").find_all("li"), start=1
@@ -519,6 +666,80 @@ def image_prefix_exists(dest: str, image_prefix: str, image_format: str):
     return len(files) > 0
 
 
+def download_generic_image(
+    task_id: int,
+    url: str,
+    dest: str,
+    image_base: str,
+    image_format: str = "native",
+):
+    """
+    downloads a generic image (comic, thumbnail, ...) from a URL and converts it
+    if desired.
+
+    Arguments:
+    ----------
+    task_id: int
+        task to report progress in.
+
+    url: str
+        image direct link.
+
+    dest: str
+        folder path where to save the downloaded image.
+
+    image_base: str
+        base filename without the dot and file-extension.
+
+    image_format: str
+        format of downloaded image: either native = whatever got downloaded or
+        jpg/png = convert the image to one of these.
+        (default: native)
+    """
+    if image_exists(dest, image_base, image_format):
+        log.debug("Image %s already exists", image_base)
+        progress.update(task_id, advance=1)
+        return
+    if url is None:
+        log.debug("No URL for image %s provided", image_base)
+        progress.update(task_id, advance=1)
+        return
+    log.debug("Requesting image %s", image_base)
+    resp = requests.get(url, headers=image_headers, stream=True, timeout=5)
+    progress.update(task_id, advance=1)
+    if resp.status_code == 200:
+        resp.raw.decode_content = True
+        content_type = resp.headers.get('Content-Type')
+        if content_type is None:
+            log.warning('No Content-Type specified for {image_base}, defaulting to jpg')
+            detected_format = 'jpg'
+        elif 'image/jpeg' in content_type:
+            detected_format = 'jpg'
+        elif 'image/png' in content_type:
+            detected_format = 'png'
+        else:
+            log.warning('Unknown Content-Type "{content_type}" for {image_base}, '
+                        'defaulting to jpg')
+            detected_format = 'jpg'
+        if image_format == 'native' or image_format == detected_format:
+            with open(os.path.join(dest, f"{image_base}.{detected_format}"), "wb") as f:
+                shutil.copyfileobj(resp.raw, f)
+        else:
+            img = Image.open(resp.raw)
+            if image_format == 'jpg' and img.mode != 'RGB':
+                if 'transparency' in img.info:
+                    img = img.convert('RGBA')
+                img = img.convert('RGB')
+            img.save(os.path.join(dest, f"{image_base}.{image_format}"))
+    else:
+        log.error(
+            "[bold red blink]Unable to download image[/][medium_spring_green]%s[/], "
+            "request returned error [bold red blink]%d[/]",
+            image_base,
+            resp.status_code,
+        )
+
+
 def download_image(
     chapter_download_task_id: int,
     url: str,
@@ -560,47 +781,101 @@ def download_image(
     page_digits: int
         Number of digits used for the page number inside the chapter
     """
-    file_name = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
-    if image_exists(dest, file_name, image_format):
-        log.debug("Chapter %d: page %d already exists", chapter_number, page_number)
-        progress.update(chapter_download_task_id, advance=1)
+    image_base = f"{chapter_number:0{zeros}d}_{page_number:0{page_digits}d}"
+    download_generic_image(chapter_download_task_id, url, dest, image_base, image_format)
+
+
+def download_music_stream(
+    task_id: int,
+    info: MusicInfo,
+    dest: str,
+    chapter_number: int,
+    chapter_digits: int,
+    page_digits: int,
+):
+    """
+    downloads one piece of background music from a streaming service.
+
+    Arguments:
+    ----------
+    task_id: int
+        task to report progress in.
+
+    info: MusicInfo
+        Scrapped info about the music piece to download
+
+    dest: str
+        folder path where to save the downloaded file.
+
+    chapter_number: int
+        chapter number used for naming the saved file.
+
+    chapter_digits: int
+        Number of digits used for the chapter number
+
+    page_digits: int
+        Number of digits used for the page number.
+    """
+    filename = (f"{chapter_number:0{chapter_digits}d}"
+                f"_{info.start:0{page_digits}d}_{info.end:0{page_digits}d}.ts")
+    filepath = os.path.join(dest, filename)
+    if os.path.exists(filepath):
+        log.debug("File %s already exists", filename)
+        progress.update(task_id, advance=1)
         return
-    log.debug("Requesting chapter %d: page %d", chapter_number, page_number)
-    resp = requests.get(url, headers=image_headers, stream=True, timeout=5)
-    progress.update(chapter_download_task_id, advance=1)
-    if resp.status_code == 200:
-        resp.raw.decode_content = True
-        content_type = resp.headers.get('Content-Type')
-        if content_type is None:
-            log.warning('No Content-Type specified for {file_name}, defaulting to jpg')
-            detected_format = 'jpg'
-        elif 'image/jpeg' in content_type:
-            detected_format = 'jpg'
-        elif 'image/png' in content_type:
-            detected_format = 'png'
-        else:
-            log.warning('Unknown Content-Type "{content_type}" for {file_name}, '
-                        'defaulting to jpg')
-            detected_format = 'jpg'
-        if image_format == 'native' or image_format == detected_format:
-            with open(os.path.join(dest, f"{file_name}.{detected_format}"), "wb") as f:
-                shutil.copyfileobj(resp.raw, f)
-        else:
-            img = Image.open(resp.raw)
-            if image_format == 'jpg' and img.mode != 'RGB':
-                if 'transparency' in img.info:
-                    img = img.convert('RGBA')
-                img = img.convert('RGB')
-            img.save(os.path.join(dest, f"{file_name}.{image_format}"))
-    else:
+    log.debug("Requesting audio manifest for %s", filename)
+    url = f'https://apis.naver.com/audiopweb/audiopplayapiweb/play/web/audio/{info.audioId}'
+    resp = requests.get(url, image_headers, stream=True, timeout=5)
+    if resp.status_code != 200:
         log.error(
-            "[bold red blink]Unable to download page[/][medium_spring_green]%d[/]"
-            "from chapter [medium_spring_green]%d[/], request returned"
-            "error [bold red blink]%d[/]",
-            page_number,
-            chapter_number,
+            "[bold red blink]Unable to download audio manifest for[/][medium_spring_green]%s[/], "
+            "request returned error [bold red blink]%d[/]",
+            filename,
             resp.status_code,
         )
+        progress.update(task_id, advance=1)
+        return
+    data = json.loads(resp.content)
+    url = data['result']['hlsManifest']['url']
+    playlist = m3u8.load(url)
+    data = b''
+    key = None
+    for i, segment in enumerate(playlist.segments):
+        decrypt = lambda x: x
+        if segment.key.method == 'AES-128':
+            if key is None:
+                resp = requests.get(segment.key.uri, stream=True, timeout=5)
+                if resp.status_code != 200:
+                    log.error(
+                        "[bold red blink]Unable to download decryption key "
+                        "for[/][medium_spring_green]%s[/], "
+                        "request returned error [bold red blink]%d[/]",
+                        filename,
+                        resp.status_code,
+                    )
+                    progress.update(task_id, advance=1)
+                    return
+                key = resp.content
+            idx = playlist.media_sequence + i
+            iv = binascii.a2b_hex(f'{idx:032x}')
+            cipher = AES.new(key, AES.MODE_CBC, iv=iv)
+            decrypt = cipher.decrypt
+        resp = requests.get(segment.uri, stream=True, timeout=5)
+        if resp.status_code != 200:
+            log.error(
+                "[bold red blink]Unable to download audio chunk %d "
+                "for[/][medium_spring_green]%s[/], "
+                "request returned error [bold red blink]%d[/]",
+                i,
+                filename,
+                resp.status_code,
+            )
+            progress.update(task_id, advance=1)
+            return
+        data += decrypt(resp.content)
+    with open(filepath, 'wb') as f:
+        f.write(data)
+    progress.update(task_id, advance=1)
 
 
 def exit_handler(sig, frame):
@@ -623,6 +898,7 @@ def download_chapter(
     zeros: int,
     images_format: str = "jpg",
     exporter: TextExporter = None,
+    extra_media: bool = False,
 ):
     """
     downloads pages starting of a given chapter, inclusive.
@@ -651,11 +927,16 @@ def download_chapter(
 
     exporter: TextExporter
         object responsible for exporting any texts, optional
+
+    extra_media: bool
+        export extra media like thumbnails or music
     """
+    prefix = f"{chapter_info.chapter_number:0{zeros}d}"
     already_downloaded = (
         os.path.exists(dest)
-        and image_prefix_exists(dest, f"{chapter_info.chapter_number:0{zeros}d}", images_format)
+        and image_prefix_exists(dest, prefix, images_format)
         and (exporter is None or exporter.has_chapter_texts(chapter_info.chapter_number))
+        and (not extra_media or image_exists(dest, f"{prefix}_thumbnail", images_format))
     )
     if already_downloaded:
         log.info("Chapter %d already present [green]✓", chapter_info.chapter_number)
@@ -674,12 +955,36 @@ def download_chapter(
                 chapter=chapter_info.chapter_number,
                 title=get_chapter_title(soup),
                 notes=get_chapter_notes(soup))
+    music = get_chapter_music(soup, img_urls)
+    if extra_media:
+        num_downloads = len(img_urls) + 1 + len(music)
+    else:
+        num_downloads = len(img_urls)
     progress.update(
-        chapter_download_task_id, total=len(img_urls), rendered_total=len(img_urls)
+        chapter_download_task_id, total=num_downloads, rendered_total=num_downloads
     )
     progress.start_task(chapter_download_task_id)
     page_digits = int(math.log10(len(img_urls) - 1)) + 1 if len(img_urls) > 1 else 1
     with ThreadPoolExecutorWithQueueSizeLimit(maxsize=10, max_workers=4) as pool:
+        if extra_media:
+            pool.submit(
+                download_generic_image,
+                chapter_download_task_id,
+                chapter_info.thumbnail_url,
+                dest,
+                f"{prefix}_thumbnail",
+                images_format,
+            )
+            for m in music:
+                pool.submit(
+                    download_music_stream,
+                    chapter_download_task_id,
+                    m,
+                    dest,
+                    chapter_info.chapter_number,
+                    zeros,
+                    page_digits,
+                )
         for page_number, url in enumerate(img_urls):
             pool.submit(
                 download_image,
@@ -748,6 +1053,7 @@ def download_webtoon(
     download_latest_chapter: bool = False,
     separate_chapters: bool = False,
     exporter: TextExporter = None,
+    extra_media: bool = False,
 ):
     """
     downloads all chapters starting from start_chapter until end_chapter, inclusive.
@@ -778,6 +1084,9 @@ def download_webtoon(
 
     exporter: TextExporter
         object responsible for exporting any texts, optional
+
+    extra_media: bool
+        export extra media like overview images, thumbnails or music
     """
     session = requests.session()
     session.cookies.set("needGDPR", "FALSE", domain=".webtoons.com")
@@ -818,6 +1127,23 @@ def download_webtoon(
             chapters_to_download[-1].chapter_number,
         )
         n_chapters_to_download = end_chapter - start_chapter + 1
+
+        if extra_media:
+            extras_download_task = progress.add_task(
+                "[green]Downloading extra images...",
+                total=3,
+                type="Images",
+                type_color="grey85",
+                number_format=">02d",
+                rendered_total=3,
+            )
+            download_generic_image(extras_download_task, get_series_background(soup),
+                    dest, 'background', images_format)
+            download_generic_image(extras_download_task, get_series_banner(soup),
+                    dest, 'banner', images_format)
+            download_generic_image(extras_download_task, get_series_thumbnail(soup),
+                    dest, 'thumbnail', images_format)
+            progress.remove_task(extras_download_task)
 
         if download_latest_chapter:
             progress.console.log(f"[plum2]Latest Chapter[/] -> [green]{end_chapter}[/]")
@@ -866,6 +1192,7 @@ def download_webtoon(
                         zeros,
                         images_format,
                         exporter,
+                        extra_media,
                     )
                 )
 
@@ -904,6 +1231,7 @@ def download_webtoon(
                             zeros,
                             images_format,
                             exporter,
+                            extra_media,
                         )
                     )
 
@@ -935,6 +1263,7 @@ def main():
             args.latest,
             separate,
             exporter,
+            args.export_extra_media,
         )
         if exporter:
             exporter.write_data()
