@@ -20,10 +20,10 @@ ZipWriteMode: TypeAlias = Literal["a", "w"]
 - 'a' for append (appends to an existing archive).
 """
 
-ZipContainer: TypeAlias = Union[str, PathLike[str], io.BytesIO]
+ZipContainer: TypeAlias = Union[str, PathLike, io.BytesIO]
 """
 Container type for Zip files
-- `str | PathLike`: Path to a file either as a string, pathlib.Path or other PathLike objects
+- `str | PathLike`: Path to a file either as a string, pathlib.Path or other PathLike object
 - `io.BytesIO`: Any Byte like object
 """
 

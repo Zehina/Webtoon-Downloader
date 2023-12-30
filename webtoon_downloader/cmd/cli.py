@@ -4,13 +4,16 @@ import asyncio
 import functools
 import sys
 from signal import SIGINT, SIGTERM
-from typing import Any
 
 import rich_click as click
 from rich.progress import Progress
 
 from webtoon_downloader import logger
-from webtoon_downloader.cmd.exceptions import LatestWithStartOrEndError, SeparateOptionWithNonImageSaveAsError
+from webtoon_downloader.cmd.exceptions import (
+    LatestWithStartOrEndError,
+    SeparateOptionWithNonImageSaveAsError,
+    handle_deprecated_options,
+)
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress, on_webtoon_fetched
 from webtoon_downloader.core.webtoon.downloaders import comic
 from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
@@ -24,17 +27,6 @@ help_config = click.RichHelpConfiguration(
     style_errors_suggestion="magenta italic",
     errors_suggestion="Try running '--help' for more information.",
 )
-
-
-def handle_deprecated_options(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
-    """Handler for deprecated options"""
-    if param.name == "export_texts" and value:
-        ctx.params["export_metadata"] = True
-        log.warning("[bold][red]'--export-texts'[/red] is deprecated; use [green]'--export-metadata'[/green] instead.")
-    elif param.name == "dest" and value is not None:
-        ctx.params["out"] = value
-        log.warning("[bold][red]'--dest'[/red] is deprecated; use [green]'--out'[/green] instead.")
-    return value
 
 
 async def download(progress: Progress, opts: WebtoonDownloadOptions) -> None:
