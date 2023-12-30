@@ -1,0 +1,8 @@
+---
+version: '3'
+services:
+  downloader:
+    build: .
+    volumes:
+      - ${WEBTOON_DOWLOAD_DIR:-/Webtoon}:/Webtoon
+    command: ${WEBTOON_DOWLOAD_ARGUMENTS:-/src/webtoon_downloader.py --help}
