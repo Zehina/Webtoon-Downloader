@@ -18,9 +18,9 @@ from webtoon_downloader.storage import (
 from webtoon_downloader.storage.exceptions import StreamWriteError
 
 
-async def async_iter_image(image: Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:  # type ignore[valid-type]
+async def async_iter_image(image: Image.Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:
     with io.BytesIO() as output:
-        image.save(output, format="JPEG")  # type: ignore[attr-defined]
+        image.save(output, format="JPEG")
         output.seek(0)
         data = output.read()
         for i in range(0, len(data), chunk_size):
@@ -32,7 +32,7 @@ async def async_iter(data: bytes, chunk_size: int = 1024) -> AsyncIterator[bytes
         yield data[i : i + chunk_size]
 
 
-async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZipWriter) -> None:
+async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: type[AioZipWriter]) -> None:
     test_files = [
         ("test.txt", b"Through Heaven and Earth, I Alone am the Honored One."),
         ("唯", "天上天下 唯我独尊".encode()),
@@ -49,8 +49,8 @@ async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZ
 
     with zipfile.ZipFile(file, "r") as zip_ref:
         for filename, data in test_files:
-            with zip_ref.open(filename, "r") as file:
-                assert data == file.read()
+            with zip_ref.open(filename, "r") as f:
+                assert data == f.read()
 
 
 @pytest.mark.asyncio
@@ -83,7 +83,7 @@ async def test_pdf_writer() -> None:
         AioFileBufferedZipWriter,
     ],
 )
-async def test_zipwriter_buffer(zip_writer: AioZipWriter):
+async def test_zipwriter_buffer(zip_writer: type[AioZipWriter]) -> None:
     await _test_zipwriter(io.BytesIO(), zip_writer)
 
 
@@ -95,7 +95,7 @@ async def test_zipwriter_buffer(zip_writer: AioZipWriter):
         AioFileBufferedZipWriter,
     ],
 )
-async def test_zipwriter_file(zip_writer: AioZipWriter) -> None:
+async def test_zipwriter_file(zip_writer: type[AioZipWriter]) -> None:
     with tempfile.NamedTemporaryFile(prefix="test_storage", suffix=".zip") as f:
         await _test_zipwriter(f.name, zip_writer)
 
@@ -107,7 +107,7 @@ async def test_write_raises_stream_write_error() -> None:
             # Passing an invalid file name
             await writer.write(async_iter(b"some data"), 12)
 
-    with tempfile.TemporaryDirectory(), pytest.raises(StreamWriteError) as dir_path:
+    with pytest.raises(StreamWriteError), tempfile.TemporaryDirectory() as dir_path:
         # Openning a directory should cause an error
         async with AioZipWriter(dir_path) as writer:
             await writer.write(async_iter(b"some data"), "test.txt")

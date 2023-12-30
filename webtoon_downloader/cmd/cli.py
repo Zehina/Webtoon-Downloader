@@ -38,7 +38,7 @@ def handle_deprecated_options(ctx: click.Context, param: click.Parameter, value:
 
 
 async def download(progress: Progress, opts: downloader.WebtoonDownloadOptions) -> None:
-    """The main download task"""
+    """The main download command"""
     with progress:
         try:
             await downloader.download_webtoon(opts)
