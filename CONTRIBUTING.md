@@ -29,7 +29,7 @@ Anything tagged with "enhancement" and "help wanted" is open to whoever wants to
 
 ## Write Documentation
 
-Cookiecutter PyPackage could always use more documentation, whether as part of the official docs, in docstrings, or even on the web in blog posts, articles, and such.
+Webtoon Downloader could always use more documentation, whether as part of the official docs or in docstrings.
 
 ## Submit Feedback
 
@@ -39,13 +39,12 @@ If you are proposing a new feature:
 
 - Explain in detail how it would work.
 - Keep the scope as narrow as possible, to make it easier to implement.
-- Remember that this is a volunteer-driven project, and that contributions
-  are welcome :)
+- Remember that this is a volunteer-driven project, and that contributions are welcome :)
 
 # Get Started!
 
 Ready to contribute? Here's how to set up `webtoon-downloader` for local development.
-Please note this documentation assumes you already have `poetry` and `Git` installed and ready to go.
+Please note this documentation assumes you already have `poetry`, `git` and `make` installed and ready to go.
 
 1. Fork the `webtoon-downloader` repo on GitHub.
 
@@ -53,7 +52,7 @@ Please note this documentation assumes you already have `poetry` and `Git` insta
 
 ```bash
 cd <directory_in_which_repo_should_be_created>
-git clone git@github.com:YOUR_NAME/webtoon-downloader.git
+git clone https://github.com/Zehina/Webtoon-Downloader.git
 ```
 
 3. Now we need to install the environment. Navigate into the directory
@@ -62,17 +61,10 @@ git clone git@github.com:YOUR_NAME/webtoon-downloader.git
 cd webtoon-downloader
 ```
 
-If you are using `pyenv`, select a version to use locally. (See installed versions with `pyenv versions`)
-
-```bash
-pyenv local <x.y.z>
-```
-
 Then, install and activate the environment with:
 
 ```bash
-poetry install
-poetry shell
+make install
 ```
 
 4. Install pre-commit to run linters/formatters at commit time:
@@ -89,7 +81,7 @@ git checkout -b name-of-your-bugfix-or-feature
 
 Now you can make your changes locally.
 
-6. Don't forget to add test cases for your added functionality to the `tests` directory.
+6. Don't forget to add test cases for your added functionality to the `tests` directory if possible.
 
 7. When you're done making changes, check that your changes pass the formatting tests.
 
@@ -127,7 +119,7 @@ git push origin name-of-your-bugfix-or-feature
 
 Before you submit a pull request, check that it meets these guidelines:
 
-1. The pull request should include tests.
+1. The pull request should include tests whenever possible.
 
 2. If the pull request adds functionality, the docs should be updated.
-   Put your new functionality into a function with a docstring, and add the feature to the list in `README.md`.
+   Put your new functionality into a function with a docstring, and add the feature to the list in `README.md` if needed.

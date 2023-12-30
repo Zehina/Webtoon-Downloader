@@ -11,7 +11,7 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-ImageFormats = Literal["PNG", "JPG", "JPEG"]
+ImageFormat = Literal["PNG", "JPG", "JPEG"]
 """
 Defines the permissible image formats for transformation.
 """
@@ -49,16 +49,15 @@ class AioImageFormatTransformer:
         target_format: The target image format to convert to.
     """
 
-    target_format: ImageFormats
+    target_format: ImageFormat
 
     _target_format: _ValidImageFormats = field(init=False)
 
     def __post_init__(self) -> None:
-        f = self.target_format
-        if f == "JPG":
-            f = "JPEG"  # JPG is not a valid format to check. and JPG == JPEG anyways
-
-        self._target_format = f
+        if self.target_format.upper() in ["JPG", "JPEG"]:
+            self._target_format = "JPEG"  # JPG is not a valid format to check. and JPG == JPEG anyways
+        else:
+            self._target_format = "PNG"
 
     async def transform(self, image_stream: AsyncIterator[bytes], target_name: str) -> tuple[AsyncIterator[bytes], str]:
         """
@@ -118,6 +117,8 @@ class AioImageFormatTransformer:
             BytesIO stream of the transformed image.
         """
         with Image.open(image_stream) as image:
+            if self._target_format == "JPEG" and image.mode == "P":
+                image = image.convert("RGB")  # Need to convert to appropriate pallet for JPEG
             output_stream = BytesIO()
             image.save(output_stream, format=self._target_format)
             output_stream.seek(0)

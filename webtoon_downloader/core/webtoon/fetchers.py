@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Literal, Sequence
+from enum import Enum
+from typing import Sequence
 
 import httpx
 from bs4 import BeautifulSoup, Tag
 from furl import furl
-from typing_extensions import TypeAlias
 
 from webtoon_downloader.core.exceptions import (
     ChapterDataEpisodeNumberFetchError,
@@ -21,24 +21,23 @@ from webtoon_downloader.core.webtoon.models import ChapterInfo
 log = logging.getLogger(__name__)
 
 
-_WebtoonDomains: TypeAlias = Literal["m", "www"]
-"""valid webtoon subdomains"""
+class WebtoonDomain(str, Enum):
+    """valid webtoon subdomains"""
+
+    MOBILE = "m"
+    STANDARD = "www"
 
 
 @dataclass
 class WebtoonFetcher:
     client: httpx.AsyncClient
 
-    def _convert_url_domain(self, series_url: str, target_subdomain: _WebtoonDomains = "m") -> str:
+    def _convert_url_domain(self, series_url: str, target_subdomain: WebtoonDomain) -> str:
         """Converts the provided Webtoon URL to the specified subdomain (default 'm')."""
         f = furl(series_url)
         domain_parts = f.host.split(".")
-        if target_subdomain not in domain_parts:
-            domain_parts.insert(0, target_subdomain)
-        else:
-            index = domain_parts.index(target_subdomain)
-            domain_parts[index] = "www" if target_subdomain == "m" else "m"
-
+        domain_parts = [part for part in domain_parts if part not in [WebtoonDomain.MOBILE, WebtoonDomain.STANDARD]]
+        domain_parts.insert(0, target_subdomain)
         f.host = ".".join(domain_parts)
         return str(f.url)
 
@@ -47,7 +46,7 @@ class WebtoonFetcher:
         viewer_url_tag = tag.find("a")
         if not isinstance(viewer_url_tag, Tag):
             raise ChapterURLFetchError(viewer_url_tag)
-        return self._convert_url_domain(str(viewer_url_tag["href"]), target_subdomain="www")
+        return self._convert_url_domain(str(viewer_url_tag["href"]), target_subdomain=WebtoonDomain.STANDARD)
 
     def _get_chapter_title(self, tag: Tag) -> str:
         """Returns the chapter title from the scrapped tag object"""
@@ -92,7 +91,7 @@ class WebtoonFetcher:
         Returns:
             A list of ChapterInfo objects containing details for each chapter.
         """
-        mobile_url = self._convert_url_domain(series_url)
+        mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
         response = await self.client.get(
             mobile_url, headers={**self.client.headers, "user-agent": client.get_mobile_ua()}
         )

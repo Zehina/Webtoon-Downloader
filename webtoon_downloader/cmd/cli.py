@@ -1,168 +1,192 @@
 from __future__ import annotations
 
-import logging
-import os
+import asyncio
+import functools
 import sys
-from logging.handlers import RotatingFileHandler
-from threading import Event
-from types import FrameType
+from signal import SIGINT, SIGTERM
+from typing import Any
 
-from rich import traceback
-from rich.console import Console
-from rich.logging import RichHandler
-from rich.progress import (
-    Progress,
-    ProgressColumn,
-    Task,
+import rich_click as click
+from rich.progress import Progress
+
+from webtoon_downloader import logger
+from webtoon_downloader.cmd.exceptions import LatestWithStartOrEndError, SeparateOptionWithNonImageSaveAsError
+from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress, on_webtoon_fetched
+from webtoon_downloader.core.webtoon import downloader
+from webtoon_downloader.core.webtoon.downloader import StorageType
+from webtoon_downloader.core.webtoon.exporter import DataExporterFormat
+from webtoon_downloader.transformers.image import ImageFormat
+
+log, console = logger.setup()
+help_config = click.RichHelpConfiguration(
+    show_metavars_column=False,
+    append_metavars_help=True,
+    style_errors_suggestion="magenta italic",
+    errors_suggestion="Try running '--help' for more information.",
 )
-from rich.text import Text
 
 
-class HumanReadableSpeedColumn(ProgressColumn):
-    """Renders human readable transfer speed."""
-
-    def render(self, task: Task) -> Text:
-        """Calculate and display the data transfer speed in a human-readable format.
-
-        Args:
-            task: The task for which speed is being rendered.
-
-        Returns:
-            A rich Text object displaying the speed.
-        """
-        speed = self._calculate_readable_speed(task)
-        speed_type = task.fields.get("type", "units")
-        return Text(f"{speed} {speed_type}/s", style="progress.data.speed", justify="center")
-
-    def _calculate_readable_speed(self, task: Task) -> str:
-        """Calculate human-readable speed.
-
-        Args:
-            task: The task for which speed is being calculated.
-
-        Returns:
-            Human-readable speed.
-        """
-        speed = task.finished_speed or task.speed
-        return "?" if speed is None else f"{speed:2.0f}"
+def handle_deprecated_options(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
+    """Handler for deprecated options"""
+    if param.name == "export_texts" and value:
+        ctx.params["export_metadata"] = True
+        log.warning("[bold][red]'--export-texts'[/red] is deprecated; use [green]'--export-metadata'[/green] instead.")
+    elif param.name == "dest" and value is not None:
+        ctx.params["out"] = value
+        log.warning("[bold][red]'--dest'[/red] is deprecated; use [green]'--out'[/green] instead.")
+    return value
 
 
-######################## Header Configuration ################################
-USER_AGENT = (
-    (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-        "AppleWebKit/537.36 (KHTML, like Gecko)"
-        "Chrome/92.0.4515.107 Safari/537.36"
+async def download(progress: Progress, opts: downloader.WebtoonDownloadOptions) -> None:
+    """The main download task"""
+    with progress:
+        try:
+            await downloader.download_webtoon(opts)
+        except asyncio.CancelledError:
+            if not progress:
+                return
+            progress.console.print("[bold red]Stopping Download[/]...")
+            progress.console.print("[red]Download Stopped[/]!")
+
+
+@click.command()
+@click.version_option()
+@click.pass_context
+@click.rich_config(help_config=help_config)
+@click.argument("url", required=True, type=str)
+@click.option(
+    "--start",
+    "-s",
+    type=int,
+    help="Start chapter",
+)
+@click.option(
+    "--end",
+    "-e",
+    type=int,
+    help="End chapter",
+)
+@click.option(
+    "--latest",
+    "-l",
+    is_flag=True,
+    help="Download only the latest chapter",
+)
+@click.option(
+    "--export-metadata",
+    "-em",
+    is_flag=True,
+    help="Export texts like series summary, chapter name, or author notes into additional files",
+)
+@click.option(
+    "--export-format",
+    "-ef",
+    type=click.Choice(["all", "json", "text"]),
+    default="json",
+    show_default=True,
+    help="Format to store exported texts in",
+)
+@click.option(
+    "--image-format",
+    "-f",
+    type=click.Choice(["jpg", "png"]),
+    default="jpg",
+    show_default=True,
+    help="Image format of downloaded images",
+)
+@click.option(
+    "--out",
+    "-o",
+    type=str,
+    help="Download parent folder path",
+)
+@click.option(
+    "--save-as",
+    "-s",
+    type=click.Choice(["images", "zip", "cbz", "pdf"]),
+    default="images",
+    show_default=True,
+    help="Choose the format to save each downloaded chapter",
+)
+@click.option(
+    "--separate",
+    is_flag=True,
+    help="Download each chapter in separate folders",
+)
+@click.option(
+    "--dest",
+    callback=handle_deprecated_options,
+    type=str,
+    expose_value=False,
+    hidden=True,
+    help="[Deprecated] Use --out instead",
+)
+@click.option(
+    "--export-texts",
+    callback=handle_deprecated_options,
+    is_flag=True,
+    expose_value=False,
+    hidden=True,
+    help="[Deprecated] Use --export-metadata instead",
+)
+def cli(
+    ctx: click.Context,
+    url: str,
+    start: int,
+    end: int,
+    latest: bool,
+    out: str,
+    image_format: ImageFormat,
+    separate: bool,
+    export_metadata: bool,
+    export_format: DataExporterFormat,
+    save_as: StorageType,
+) -> None:
+    loop = asyncio.get_event_loop()
+    if not url:
+        console.print(
+            '[red]A Webtoon URL of the form [green]"https://www.webtoons.com/.../list?title_no=??"[/] of is required.'
+        )
+        ctx.exit(1)
+    if latest and (start or end):
+        raise LatestWithStartOrEndError(ctx)
+    if separate and (save_as != "images"):
+        raise SeparateOptionWithNonImageSaveAsError(ctx)
+
+    progress = init_progress(console)
+    progress_manager = ChapterProgressManager(progress)
+    series_download_task = progress.add_task(
+        "[green]Downloading Chapters...",
+        type="Chapters",
+        type_color="grey93",
+        number_format=">02d",
+        rendered_total="??",
     )
-    if os.name == "nt"
-    else ("Mozilla/5.0 (X11; Linux ppc64le; rv:75.0)" "Gecko/20100101 Firefox/75.0")
-)
 
-headers = {
-    "dnt": "1",
-    "user-agent": USER_AGENT,
-    "accept-language": "en-US,en;q=0.9",
-}
-image_headers = {"referer": "https://www.webtoons.com/", **headers}
-###########################################################################
-
-######################## Log Configuration ################################
-sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
-console = Console()
-traceback.install(console=console, show_locals=False)
-logging.getLogger("urllib3").setLevel(logging.CRITICAL)
-log = logging.getLogger(__name__)
-log.setLevel(logging.DEBUG)
-
-# create formatter
-CLI_FORMAT = "%(message)s"
-FILE_FORMAT = "%(asctime)s - %(levelname)-8s - %(message)s - %(filename)s - %(lineno)d - %(name)s"  # rearranged
-
-# create file handler
-LOG_FILENAME = "webtoon_downloader.log"
-file_handler = RotatingFileHandler(LOG_FILENAME, maxBytes=1000000, backupCount=10, encoding="utf-8")
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(logging.Formatter(FILE_FORMAT))
-
-console_handler = RichHandler(
-    level=logging.WARNING,
-    console=console,
-    rich_tracebacks=True,
-    tracebacks_show_locals=False,
-    markup=True,
-)
-console_handler.setLevel(logging.WARNING)
-console_handler.setFormatter(logging.Formatter(CLI_FORMAT))
-log.addHandler(file_handler)
-log.addHandler(console_handler)
-##################################################################
-
-done_event = Event()
+    opts = downloader.WebtoonDownloadOptions(
+        start=start,
+        end=end,
+        destination=out,
+        export_texts=export_metadata,
+        exporter_format=export_format,
+        separate=separate,
+        image_format=image_format,
+        save_as=save_as,
+        chapter_progress_callback=progress_manager.advance_progress,
+        on_webtoon_fetched=functools.partial(on_webtoon_fetched, progress=progress, task=series_download_task),
+    )
+    loop = asyncio.get_event_loop()
+    main_task = asyncio.ensure_future(download(progress, opts))
+    for signal in [SIGINT, SIGTERM]:
+        loop.add_signal_handler(signal, main_task.cancel)
+    try:
+        loop.run_until_complete(main_task)
+    finally:
+        loop.close()
 
 
-progress: Progress | None = None
-
-
-def exit_handler(sig: int, frame: FrameType | None) -> None:
-    """
-    stops execution of the program.
-    """
-    done_event.set()
-    if progress:
-        progress.console.print("[bold red]Stopping Download[/]...")
-        progress.console.print("[red]Download Stopped[/]!")
-        progress.console.print("")
-    sys.exit(0)
-
-
-# def run() -> None:
-#     global progress
-#     signal.signal(signal.SIGINT, exit_handler)
-#     parser = Options()
-#     parser.initialize()
-#     try:
-#         args = parser.parse()
-#     except Exception as exc:
-#         console.print(f"[red]Error:[/] {exc}")
-#         sys.exit(1)
-
-#     series_url = args.url
-#     separate = args.separate
-#     exporter = TextExporter(args.export_format) if args.export_texts else None
-
-#     progress = Progress(
-#         TextColumn("{task.description}", justify="right"),
-#         BarColumn(bar_width=None),
-#         "[progress.percentage]{task.percentage:>3.2f}%",
-#         "•",
-#         SpinnerColumn(style="progress.data.speed"),
-#         HumanReadableSpeedColumn(),
-#         "•",
-#         TextColumn(
-#             "[green]{task.completed:>02d}[/]/[bold green]{task.fields[rendered_total]}[/]",
-#             justify="left",
-#         ),
-#         SpinnerColumn(),
-#         "•",
-#         TimeRemainingColumn(),
-#         transient=True,
-#         refresh_per_second=20,
-#     )
-#     try:
-#         download_webtoon(
-#             progress,
-#             done_event,
-#             series_url,
-#             args.start,
-#             args.end,
-#             args.dest,
-#             args.images_format,
-#             args.latest,
-#             separate,
-#             exporter,
-#         )
-#         if exporter:
-#             exporter.write_data()
-#     except Exception:
-#         log.exception("Error while downloading webtoon")
-#         sys.exit(1)
+def run() -> None:
+    """CLI entrypoint"""
+    if len(sys.argv) <= 1:
+        sys.argv.append("--help")
+    cli()  # pylint: disable=no-value-for-parameter

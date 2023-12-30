@@ -5,24 +5,28 @@ from PIL import Image
 
 from webtoon_downloader.transformers.image import (
     AioImageFormatTransformer,
-    ImageFormats,
+    ImageFormat,
     _bytesio_to_async_gen,
 )
+
+# TODO: MAKE THE ISSUE COME BACK IN ORDER TO TEST BETTER ERROR HANDLING IF FAILURE
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "original_format, target_format",
+    "original_format, target_format, mode",
     [
-        ("PNG", "JPEG"),
-        ("PNG", "PNG"),
-        ("JPEG", "PNG"),
-        ("JPEG", "JPEG"),
+        ("PNG", "JPEG", "RGB"),
+        ("PNG", "PNG", "RGB"),
+        ("JPEG", "PNG", "RGB"),
+        ("JPEG", "JPEG", "RGB"),
+        ("PNG", "JPEG", "P"),
+        ("PNG", "PNG", "P"),
     ],
 )
-async def test_image_format_transformer(original_format: str, target_format: ImageFormats) -> None:
+async def test_image_format_transformer(original_format: str, target_format: ImageFormat, mode: str) -> None:
     # Create a sample image in memory
-    original_image = Image.new("RGB", (100, 100), color="red")
+    original_image = Image.new(mode, (100, 100), color="red")
     original_stream = io.BytesIO()
     original_image.save(original_stream, format=original_format)
     original_stream.seek(0)

@@ -10,7 +10,7 @@ import aiofiles
 
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 
-TextExporterFormat = Literal["text", "json", "all"]
+DataExporterFormat = Literal["text", "json", "all"]
 
 
 class ExportChapterData(TypedDict):
@@ -40,7 +40,7 @@ class ExportData(TypedDict):
 
 
 @dataclass
-class TextExporter:
+class DataExporter:
     """
     Writes text elements to files, either to multiple plain text files or/and to a single JSON file.
 
@@ -49,21 +49,18 @@ class TextExporter:
         export_format   : The format to export the data ('text', 'json', or 'all').
     """
 
-    export_format: TextExporterFormat
-    dest: str | PathLike[str] = field(default_factory=lambda: Path("."))
+    export_format: DataExporterFormat
 
-    _dest: Path = field(init=False)
     _data: ExportData = field(init=False)
     _write_json: bool = field(init=False)
     _write_text: bool = field(init=False)
 
     def __post_init__(self) -> None:
         self._data = {"chapters": {}, "summary": ""}
-        self._dest = Path(self.dest)
         self._write_json = self.export_format in ["json", "all"]
         self._write_text = self.export_format in ["text", "all"]
 
-    async def add_series_texts(self, summary: str | None, directory: str | PathLike[str] | None = None) -> None:
+    async def add_series_summary(self, summary: str | None, file_path: str | PathLike[str]) -> None:
         """
         Adds the series summary to the export data.
 
@@ -75,15 +72,14 @@ class TextExporter:
             return
 
         self._data["summary"] = summary
-        directory = Path(directory) if directory else self._dest
-        await self._aio_write(directory / "summary.txt", summary)
+        await self._aio_write(file_path, summary)
 
     async def add_chapter_details(
         self,
         chapter: ChapterInfo,
+        title_path: str | PathLike[str],
+        notes_path: str | PathLike[str],
         notes: str,
-        padding: int = 0,
-        directory: str | PathLike[str] | None = None,
     ) -> None:
         """
         Adds chapter texts to the export data.
@@ -91,23 +87,18 @@ class TextExporter:
         Args:
             chapter     : The chapter info object.
             notes       : Notes or additional text associated with the chapter.
-            padding     : 0 padding to add to generated file.
-            directory   : The directory where the chapter files will be written. Defaults to the main destination directory.
         """
         self._data["chapters"][chapter.number] = {"title": chapter.title, "notes": notes}
-
         if not self._write_text:
             return
 
-        directory = Path(directory) if directory else self._dest
-        await self._aio_write(directory / f"{chapter.number:0{padding}d}_title.txt", chapter.title)
-
+        await self._aio_write(title_path, chapter.title)
         if notes:
-            await self._aio_write(directory / f"{chapter.number:0{padding}d}_notes.txt", notes)
+            await self._aio_write(notes_path, notes)
 
     async def write_data(
         self,
-        directory: str | PathLike[str] | None = None,
+        directory: str | PathLike[str],
     ) -> None:
         """
         Writes the collected data to a JSON file if JSON export is enabled.
@@ -118,13 +109,12 @@ class TextExporter:
         if not self._write_json:
             return
 
-        directory = Path(directory) if directory else self._dest
         data = json.dumps(self._data, sort_keys=True, indent=4)
-        await self._aio_write(directory / "info.json", data, end="")
+        await self._aio_write(Path(directory) / "info.json", data, end="")
 
     async def _aio_write(
         self,
-        target: str | Path,
+        target: str | PathLike[str],
         data: str,
         mode: Literal["a", "w"] = "w",
         end: str = "\n",
