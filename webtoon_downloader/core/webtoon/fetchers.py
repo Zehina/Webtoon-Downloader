@@ -30,6 +30,15 @@ class WebtoonDomain(str, Enum):
 
 @dataclass
 class WebtoonFetcher:
+    """
+    Fetches details of Webtoon chapters from a given series URL.
+
+    This class is responsible for extracting information such as chapter titles, URLs, and episode numbers from Webtoon's HTML content.
+
+    Attributes:
+        client: The HTTP client used for making requests to Webtoon.
+    """
+
     client: httpx.AsyncClient
 
     def _convert_url_domain(self, series_url: str, target_subdomain: WebtoonDomain) -> str:
@@ -73,10 +82,7 @@ class WebtoonFetcher:
         return series_title_tag.text
 
     async def get_chapters_details(
-        self,
-        series_url: str,
-        start_chapter: int = 1,
-        end_chapter: int | None = None,
+        self, series_url: str, start_chapter: int | None = None, end_chapter: int | None = None
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -90,6 +96,7 @@ class WebtoonFetcher:
 
         Returns:
             A list of ChapterInfo objects containing details for each chapter.
+            If both `start_chapter` and `end_chapter` are None, returns the latest chapter only.
         """
         mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
         response = await self.client.get(
@@ -110,5 +117,8 @@ class WebtoonFetcher:
                 series_title=series_title,
             )
             chapter_details.append(chapter_info)
+
+        if not start_chapter and not end_chapter:
+            return [chapter_details[-1]]
 
         return chapter_details[int(start_chapter or 1) - 1 : end_chapter]

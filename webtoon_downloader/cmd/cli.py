@@ -12,8 +12,8 @@ from rich.progress import Progress
 from webtoon_downloader import logger
 from webtoon_downloader.cmd.exceptions import LatestWithStartOrEndError, SeparateOptionWithNonImageSaveAsError
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress, on_webtoon_fetched
-from webtoon_downloader.core.webtoon import downloader
-from webtoon_downloader.core.webtoon.downloader import StorageType
+from webtoon_downloader.core.webtoon.downloaders import comic
+from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
 from webtoon_downloader.core.webtoon.exporter import DataExporterFormat
 from webtoon_downloader.transformers.image import ImageFormat
 
@@ -37,11 +37,11 @@ def handle_deprecated_options(ctx: click.Context, param: click.Parameter, value:
     return value
 
 
-async def download(progress: Progress, opts: downloader.WebtoonDownloadOptions) -> None:
+async def download(progress: Progress, opts: WebtoonDownloadOptions) -> None:
     """The main download command"""
     with progress:
         try:
-            await downloader.download_webtoon(opts)
+            await comic.download_webtoon(opts)
         except asyncio.CancelledError:
             if not progress:
                 return
@@ -97,7 +97,7 @@ async def download(progress: Progress, opts: downloader.WebtoonDownloadOptions) 
 @click.option(
     "--out",
     "-o",
-    type=str,
+    type=click.Path(file_okay=False, writable=True, resolve_path=True),
     help="Download parent folder path",
 )
 @click.option(
@@ -163,11 +163,12 @@ def cli(
         rendered_total="??",
     )
 
-    opts = downloader.WebtoonDownloadOptions(
+    opts = WebtoonDownloadOptions(
         start=start,
         end=end,
+        latest=latest,
         destination=out,
-        export_texts=export_metadata,
+        export_metadata=export_metadata,
         exporter_format=export_format,
         separate=separate,
         image_format=image_format,
@@ -175,6 +176,7 @@ def cli(
         chapter_progress_callback=progress_manager.advance_progress,
         on_webtoon_fetched=functools.partial(on_webtoon_fetched, progress=progress, task=series_download_task),
     )
+
     loop = asyncio.get_event_loop()
     main_task = asyncio.ensure_future(download(progress, opts))
     for signal in [SIGINT, SIGTERM]:

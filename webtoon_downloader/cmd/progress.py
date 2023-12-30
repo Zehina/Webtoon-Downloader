@@ -16,7 +16,7 @@ from rich.progress import (
 )
 from rich.text import Text
 
-from webtoon_downloader.core.webtoon import downloader
+from webtoon_downloader.core.webtoon.downloaders.callbacks import ChapterProgressType
 from webtoon_downloader.core.webtoon.extractor import WebtoonViewerPageExtractor
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 
@@ -125,7 +125,7 @@ class ChapterProgressManager:
     async def advance_progress(
         self,
         chapter_info: ChapterInfo,
-        progress_type: downloader.ChapterProgressType,
+        progress_type: ChapterProgressType,
         extractor: WebtoonViewerPageExtractor | None,
     ) -> None:
         """
