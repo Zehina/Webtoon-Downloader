@@ -133,6 +133,11 @@ For example, downloading Tower of God, Chapter 150 would result in the following
             │...
     ```
 
+* You can also download extra media: series banner, thumbnails, music.
+    ```ps
+    $ webtoon-downloader [url] --export-extra-media
+    ```
+
 * You can additionally export the summary, chapter-title and author-notes into text files.
 You can select the format for the output as either JSON (default) or plain text files or both.
     ```ps

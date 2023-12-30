@@ -42,8 +42,13 @@ class Options():
         self.parser.add_argument('-d', '--dest', type=str,
                             help='download parent folder path', required= False)
         self.parser.add_argument('--images-format', required=False,
-                            help='image format of downloaded images, available: (png, jpg)', 
-                            choices=['jpg', 'png'], default='jpg')
+                            help='image format of downloaded images, available: '
+                                 '(native, png, jpg)',
+                            choices=['native', 'jpg', 'png'], default='native')
+        self.parser.add_argument('--export-extra-media', required=False,
+                            help='download extra media like overview images, '
+                            'thumbnails or music',
+                            action='store_true', default=False)
         self.parser.add_argument('--seperate', required=False,
                             help='[DEPRECATED] download each chapter in separate folders',
                             action='store_true', default=False)
