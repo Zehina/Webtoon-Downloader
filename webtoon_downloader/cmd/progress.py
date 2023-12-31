@@ -87,7 +87,7 @@ def init_progress(console: Console) -> Progress:
         TimeRemainingColumn(),
         console=console,
         transient=True,
-        refresh_per_second=60,
+        refresh_per_second=10,
         expand=True,
     )
 
