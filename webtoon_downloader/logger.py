@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import tempfile
 from logging import FileHandler
@@ -30,6 +31,7 @@ def setup() -> Tuple[logging.Logger, Console]:
             click,
             httpx,
             aiofiles,
+            asyncio,
         ],
     )
     log = logging.getLogger(__name__)

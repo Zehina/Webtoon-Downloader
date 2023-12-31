@@ -66,15 +66,10 @@ class ImageDownloader:
         async with client.stream("GET", url) as response:
             response.raise_for_status()
             response_stream = response.aiter_bytes()
-            # No need to keep the stream open whilst performing all transformations
-            # Better to send the stream to the first transformer then close the client stream
-            if len(self.transformers) > 0:
-                response_stream, target = await self.transformers[0].transform(response_stream, target)
+            for transformer in self.transformers:
+                response_stream, target = await transformer.transform(response_stream, target)
 
-        for transformer in self.transformers[1:]:
-            response_stream, target = await transformer.transform(response_stream, target)
-
-        size = await storage.write(response_stream, target)
+            size = await storage.write(response_stream, target)
         await self._update_progress()
         return ImageDownloadResult(target, size)
 
