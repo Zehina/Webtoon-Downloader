@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import NamedTuple
+from typing import NamedTuple, Sequence
 
 from rich.console import Console
 from rich.progress import (
@@ -69,9 +69,13 @@ def init_progress(console: Console) -> Progress:
         Progress  : A configured Progress object ready for use in tracking download tasks.
     """
     return Progress(
-        TextColumn("{task.description}", justify="right"),
-        BarColumn(bar_width=None),
-        "[progress.percentage]{task.percentage:>3.2f}%",
+        TextColumn("[bold cyan]{task.description}", justify="left"),
+        BarColumn(
+            bar_width=None,
+            complete_style="green",
+            pulse_style="white",
+        ),
+        "[progress.percentage]{task.percentage:>3.0f}%",
         "•",
         SpinnerColumn(style="progress.data.speed"),
         HumanReadableSpeedColumn(),
@@ -85,23 +89,9 @@ def init_progress(console: Console) -> Progress:
         TimeRemainingColumn(),
         console=console,
         transient=True,
-        refresh_per_second=20,
+        refresh_per_second=60,
+        expand=True,
     )
-
-
-async def on_webtoon_fetched(chapters: list[ChapterInfo], progress: Progress, task: TaskID) -> None:
-    """
-    Callback function to update the progress bar when a webtoon's chapters are fetched.
-
-    Updates the task in the progress bar with the total number of chapters fetched,
-    allowing the progress bar to reflect the actual number of chapters being processed.
-
-    Args:
-        chapters    : List of chapters that have been fetched.
-        progress    : The progress bar instance to update.
-        task        : The ID of the task in the progress bar being updated.
-    """
-    progress.update(task, total=len(chapters), rendered_total=len(chapters))
 
 
 @dataclass
@@ -116,11 +106,26 @@ class ChapterProgressManager:
     """
 
     progress: Progress
+    series_download_task: TaskID
 
     _task_ids: dict[int, ChapterTask] = field(init=False)
 
     def __post_init__(self) -> None:
         self._task_ids = {}
+
+    async def on_webtoon_fetched(self, chapters: Sequence[ChapterInfo]) -> None:
+        """
+        Callback function to update the progress bar when a webtoon's chapters are fetched.
+
+        Updates the task in the progress bar with the total number of chapters fetched,
+
+        Args:
+            chapters    : List of chapters that have been fetched.
+            progress    : The progress bar instance to update.
+            task        : The ID of the task in the progress bar being updated.
+        """
+        total_chapters = len(chapters)
+        self.progress.update(self.series_download_task, total=total_chapters, rendered_total=f"{total_chapters:02}")
 
     async def advance_progress(
         self,
@@ -179,4 +184,5 @@ class ChapterProgressManager:
         """Complete the progress task for a chapter and remove it from tracking."""
         task = self._task_ids[chapter_info.number]
         self.progress.remove_task(task.task)
+        self.progress.update(self.series_download_task, advance=1)
         del self._task_ids[chapter_info.number]

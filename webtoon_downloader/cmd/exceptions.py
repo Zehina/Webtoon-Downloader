@@ -47,7 +47,7 @@ class DeprecatedOptionError(click.UsageError):
 
 def handle_deprecated_options(_: click.Context, param: click.Parameter, value: Any) -> None:
     """Handler for deprecated options"""
-    if param.name == "export_texts":
+    if param.name == "export_texts" and value:
         raise DeprecatedOptionError(deprecated_option="--export-texts", use_instead_option="--export-metadata")
     elif param.name == "dest" and value is not None:
         raise DeprecatedOptionError(deprecated_option="--dest", use_instead_option="--out")

@@ -4,6 +4,9 @@ from logging import FileHandler
 from pathlib import Path
 from typing import Tuple
 
+import aiofiles
+import httpx
+import rich_click as click
 from rich import traceback
 from rich.console import Console
 from rich.logging import RichHandler
@@ -20,7 +23,15 @@ def setup() -> Tuple[logging.Logger, Console]:
         The configured logger and the rich console object.
     """
     console = Console()
-    traceback.install(console=console, show_locals=False)
+    traceback.install(
+        console=console,
+        show_locals=False,
+        suppress=[
+            click,
+            httpx,
+            aiofiles,
+        ],
+    )
     log = logging.getLogger(__name__)
     log.setLevel(logging.DEBUG)
 

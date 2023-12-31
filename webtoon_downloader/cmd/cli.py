@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import functools
 import sys
 from signal import SIGINT, SIGTERM
 
@@ -14,7 +13,7 @@ from webtoon_downloader.cmd.exceptions import (
     SeparateOptionWithNonImageSaveAsError,
     handle_deprecated_options,
 )
-from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress, on_webtoon_fetched
+from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress
 from webtoon_downloader.core.webtoon.downloaders import comic
 from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
 from webtoon_downloader.core.webtoon.exporter import DataExporterFormat
@@ -146,7 +145,6 @@ def cli(
         raise SeparateOptionWithNonImageSaveAsError(ctx)
 
     progress = init_progress(console)
-    progress_manager = ChapterProgressManager(progress)
     series_download_task = progress.add_task(
         "[green]Downloading Chapters...",
         type="Chapters",
@@ -155,6 +153,7 @@ def cli(
         rendered_total="??",
     )
 
+    progress_manager = ChapterProgressManager(progress, series_download_task)
     opts = WebtoonDownloadOptions(
         start=start,
         end=end,
@@ -166,7 +165,7 @@ def cli(
         image_format=image_format,
         save_as=save_as,
         chapter_progress_callback=progress_manager.advance_progress,
-        on_webtoon_fetched=functools.partial(on_webtoon_fetched, progress=progress, task=series_download_task),
+        on_webtoon_fetched=progress_manager.on_webtoon_fetched,
     )
 
     loop = asyncio.get_event_loop()
