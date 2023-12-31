@@ -114,12 +114,18 @@ class TextExporter:
             self.data['chapters'][int(c)] = chapter
         self.data_is_unchanged = True
 
-    def add_series_texts(self, summary: str):
+    def add_series_texts(self, summary: str, title: str = None):
         self.data_is_unchanged &= ('summary' in self.data
-                and self.data['summary'] == summary)
+                and self.data['summary'] == summary
+                and (title is None
+                     or ('title' in self.data and self.data['title'] == title)))
         self.data['summary'] = summary
+        if title is not None:
+            self.data['title'] = title
         if self.write_text:
             TextExporter._write_text(os.path.join(self.dest, "summary.txt"), summary)
+            if title is not None:
+                TextExporter._write_text(os.path.join(self.dest, "title.txt"), title)
 
     def has_chapter_texts(self, chapter: int):
         result = True
@@ -797,7 +803,8 @@ def download_webtoon(
     if exporter:
         exporter.set_dest(dest)
         exporter.load_old_info()
-        exporter.add_series_texts(summary=get_series_summary(soup))
+        exporter.add_series_texts(summary=get_series_summary(soup),
+                                  title=series_title)
 
     progress.console.print(
         f"Downloading [italic medium_spring_green]{series_title}[/] from {series_url}"
