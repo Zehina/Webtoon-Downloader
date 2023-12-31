@@ -21,7 +21,7 @@
 [![License](https://img.shields.io/github/license/Zehina/webtoon-downloader)](https://img.shields.io/github/license/Zehina/webtoon-downloader)
 
 <p align="center">
-  <img src="docs/imgs/3.svg">
+  <img src="docs/imgs/demo.svg">
 </p>
 
 <!-- TABLE OF CONTENTS -->
