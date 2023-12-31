@@ -54,9 +54,13 @@
 
 To get a local copy up and running follow these simple steps.
 
+<p align="center">
+  <img src="docs/imgs/help.png">
+</p>
+
 ### Compatibility
 
-Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python version required is:
+Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python version required is: 3.8
 
 ### Installation
 
@@ -151,12 +155,8 @@ $ webtoon-downloader [url] --export-texts [--export-format <json|text|all>]
 For more details on positional arguments, please use the `-h ` or `--help` argument:
 
 ```console
-py webtoon_downloader.py --help
+webtoon_downloader --help
 ```
-
-<p align="center">
-  <img src="docs/imgs/help.svg">
-</p>
 
 <!-- CONTRIBUTING -->
 
