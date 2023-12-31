@@ -146,7 +146,7 @@ def cli(
 
     progress = init_progress(console)
     series_download_task = progress.add_task(
-        "[green]Downloading Chapters...",
+        "Downloading Chapters...",
         type="Chapters",
         type_color="grey93",
         number_format=">02d",

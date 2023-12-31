@@ -69,22 +69,19 @@ def init_progress(console: Console) -> Progress:
         Progress  : A configured Progress object ready for use in tracking download tasks.
     """
     return Progress(
-        TextColumn("[bold cyan]{task.description}", justify="left"),
-        BarColumn(
-            bar_width=None,
-            complete_style="green",
-            pulse_style="white",
-        ),
+        TextColumn("[bold cyan2]{task.description}", justify="left", style="cyan2"),
+        BarColumn(bar_width=None),
         "[progress.percentage]{task.percentage:>3.0f}%",
         "•",
         SpinnerColumn(style="progress.data.speed"),
         HumanReadableSpeedColumn(),
         "•",
         TextColumn(
-            "[green]{task.completed:>02d}[/]/[bold green]{task.fields[rendered_total]}[/]",
+            "[bold cyan2]{task.completed:>02d}[/]/[bold cyan2]{task.fields[rendered_total]}[/]",
             justify="left",
+            style="cyan2",
         ),
-        SpinnerColumn(),
+        SpinnerColumn(style="cyan2"),
         "•",
         TimeRemainingColumn(),
         console=console,
