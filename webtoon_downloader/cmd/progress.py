@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 from typing import NamedTuple, Sequence
 
@@ -70,7 +71,7 @@ def init_progress(console: Console) -> Progress:
     """
     return Progress(
         TextColumn("[bold cyan2]{task.description}", justify="left", style="cyan2"),
-        BarColumn(bar_width=None),
+        BarColumn(bar_width=None, finished_style="cyan"),
         "[progress.percentage]{task.percentage:>3.0f}%",
         "•",
         SpinnerColumn(style="progress.data.speed"),
@@ -147,7 +148,7 @@ class ChapterProgressManager:
             self._start_task(chapter_info)
             self._progress_task(chapter_info)
         elif progress_type == "Completed":
-            self._complete_task(chapter_info)
+            await self._complete_task(chapter_info)
 
     def _add_task(self, chapter_info: ChapterInfo) -> None:
         """Add a new progress task for a chapter."""
@@ -177,9 +178,10 @@ class ChapterProgressManager:
         task = self._task_ids[chapter_info.number]
         self.progress.update(task.task, total=total, rendered_total=total)
 
-    def _complete_task(self, chapter_info: ChapterInfo) -> None:
+    async def _complete_task(self, chapter_info: ChapterInfo) -> None:
         """Complete the progress task for a chapter and remove it from tracking."""
         task = self._task_ids[chapter_info.number]
-        self.progress.remove_task(task.task)
         self.progress.update(self.series_download_task, advance=1)
+        await asyncio.sleep(0.5)
+        self.progress.remove_task(task.task)
         del self._task_ids[chapter_info.number]

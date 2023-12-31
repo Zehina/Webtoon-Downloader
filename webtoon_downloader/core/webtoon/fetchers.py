@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Sequence
+from typing import Literal, Sequence
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -82,7 +82,7 @@ class WebtoonFetcher:
         return series_title_tag.text
 
     async def get_chapters_details(
-        self, series_url: str, start_chapter: int | None = None, end_chapter: int | None = None
+        self, series_url: str, start_chapter: int | None = None, end_chapter: int | None | Literal["latest"] = None
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -92,11 +92,13 @@ class WebtoonFetcher:
         Args:
             series_url      : The URL of the Webtoon series from which to fetch chapter details.
             start_chapter   : The starting chapter number from which to begin fetching details.
-            end_chapter     : chapter number up to which details should be fetched. If None, fetches all chapters up to the last available.
+            end_chapter     : chapter number up to which details should be fetched.
 
         Returns:
             A list of ChapterInfo objects containing details for each chapter.
-            If both `start_chapter` and `end_chapter` are None, returns the latest chapter only.
+            If end_chapter None, fetches all chapters up to the last available.
+            If end_chapter is set to latest and start_chapter is None then returns the last chapter
+            If both `start_chapter` and `end_chapter` are None, returns all chapters.
         """
         mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
         response = await self.client.get(
@@ -118,7 +120,7 @@ class WebtoonFetcher:
             )
             chapter_details.append(chapter_info)
 
-        if not start_chapter and not end_chapter:
+        if end_chapter == "latest":
             return [chapter_details[-1]]
 
         return chapter_details[int(start_chapter or 1) - 1 : end_chapter]

@@ -5,6 +5,7 @@ import logging
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
+from typing import Literal
 
 import httpx
 
@@ -53,7 +54,7 @@ class WebtoonDownloader:
     storage_type: StorageType
 
     start_chapter: int | None = None
-    end_chapter: int | None = None
+    end_chapter: int | None | Literal["latest"] = None
     concurrent_chapters: int = DEFAULT_CHAPTER_LIMIT
     directory: str | PathLike[str] | None = None
     exporter: DataExporter | None = None
@@ -190,8 +191,9 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         file_name_generator=file_name_generator,
     )
 
+    end: int | None | Literal["latest"]
     if opts.latest:
-        start, end = None, None
+        start, end = None, "latest"
     else:
         start, end = opts.start, opts.end
 
