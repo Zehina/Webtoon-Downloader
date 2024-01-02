@@ -12,7 +12,9 @@ ImageFormats = Literal["PNG", "JPEG"]
 log = logging.getLogger(__name__)
 
 
-async def _bytesio_to_async_gen(bytes_io: BytesIO, chunk_size: int = 1024) -> AsyncIterator[bytes]:
+async def _bytesio_to_async_gen(
+    bytes_io: BytesIO, chunk_size: int = 1024
+) -> AsyncIterator[bytes]:
     while True:
         chunk = bytes_io.read(chunk_size)
         if not chunk:
@@ -21,7 +23,9 @@ async def _bytesio_to_async_gen(bytes_io: BytesIO, chunk_size: int = 1024) -> As
 
 
 class AioImageTransformer(Protocol):
-    async def transform(self, image_stream: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
+    async def transform(
+        self, image_stream: AsyncIterator[bytes]
+    ) -> AsyncIterator[bytes]:
         """Transforms and returns the given image"""
 
 
@@ -29,18 +33,24 @@ class AioImageTransformer(Protocol):
 class AioImageFormatTransformer:
     target_format: ImageFormats
 
-    async def transform(self, image_stream: AsyncIterator[bytes]) -> AsyncIterator[bytes]:
+    async def transform(
+        self, image_stream: AsyncIterator[bytes]
+    ) -> AsyncIterator[bytes]:
         bytes_io_stream = BytesIO()
         async for chunk in image_stream:
             bytes_io_stream.write(chunk)
         bytes_io_stream.seek(0)
 
         # Determine if transformation is necessary
-        transform_needed = await self._run_in_executor(self._is_transformation_needed, bytes_io_stream)
+        transform_needed = await self._run_in_executor(
+            self._is_transformation_needed, bytes_io_stream
+        )
 
         if transform_needed:
             log.debug("Running image convertion to %s", self.target_format)
-            transformed_stream = await self._run_in_executor(self._sync_transform, bytes_io_stream)
+            transformed_stream = await self._run_in_executor(
+                self._sync_transform, bytes_io_stream
+            )
         else:
             log.debug("No transformation needed")
             transformed_stream = bytes_io_stream

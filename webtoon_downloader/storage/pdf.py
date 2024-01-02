@@ -74,7 +74,9 @@ class AioPdfWriter:
 
     def _add_image_to_pdf(self, page_data: PageData) -> None:
         # Create a new PDF page with the size of the image
-        page = self._doc.new_page(-1, width=page_data.dimension.width, height=page_data.dimension.height)
+        page = self._doc.new_page(
+            -1, width=page_data.dimension.width, height=page_data.dimension.height
+        )
 
         # Insert the image into the page using its original size
         page.insert_image(

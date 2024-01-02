@@ -17,7 +17,9 @@ class MutuallyExclusiveArgumentsError(Exception):
     def __init__(self, args1: list[str], args2: list[str]):
         self.args1 = args1
         self.args2 = args2
-        self.message = f"Arguments from {args1} should be mutually exclusive from {args2}"
+        self.message = (
+            f"Arguments from {args1} should be mutually exclusive from {args2}"
+        )
         super().__init__(self.message)
 
 
@@ -27,7 +29,9 @@ class CustomRichHelpFormatter(RichHelpFormatter):
             metavar = self._get_default_metavar_for_positional(action)
             return r.Text(metavar, "argparse.args")
         else:
-            action_header = r.Text(", ").join(r.Text(o, "argparse.args") for o in action.option_strings)
+            action_header = r.Text(", ").join(
+                r.Text(o, "argparse.args") for o in action.option_strings
+            )
             return action_header
 
     def _rich_expand_help(self, action: argparse.Action) -> r.Text:
@@ -39,14 +43,18 @@ class CustomRichHelpFormatter(RichHelpFormatter):
 
         # Append metavar to the help text for options with arguments
         if action.option_strings and action.nargs != 0 and action.choices is not None:
-            metavar = self._format_args(action, self._get_default_metavar_for_optional(action))
+            metavar = self._format_args(
+                action, self._get_default_metavar_for_optional(action)
+            )
             original_help.append(f" {metavar}", style="argparse.metavar")
 
         return original_help
 
 
 class Options:
-    def __init__(self, description: str = "Webtoon Downloader", console: Console | None = None) -> None:
+    def __init__(
+        self, description: str = "Webtoon Downloader", console: Console | None = None
+    ) -> None:
         self.parser = argparse.ArgumentParser(
             formatter_class=CustomRichHelpFormatter,
             description=Markdown(description, style="argparse.text"),  # type: ignore[arg-type]
@@ -74,7 +82,9 @@ class Options:
             required=False,
             default=None,
         )
-        self.parser.add_argument("-e", "--end", type=int, help="end chapter", required=False, default=None)
+        self.parser.add_argument(
+            "-e", "--end", type=int, help="end chapter", required=False, default=None
+        )
         self.parser.add_argument(
             "-l",
             "--latest",
@@ -83,7 +93,9 @@ class Options:
             action="store_true",
             default=False,
         )
-        self.parser.add_argument("-d", "--dest", type=str, help="download parent folder path", required=False)
+        self.parser.add_argument(
+            "-d", "--dest", type=str, help="download parent folder path", required=False
+        )
         self.parser.add_argument(
             "--images-format",
             required=False,
@@ -101,7 +113,10 @@ class Options:
         self.parser.add_argument(
             "--export-texts",
             required=False,
-            help=("export texts like series summary, chapter name or author " "notes into additional files"),
+            help=(
+                "export texts like series summary, chapter name or author "
+                "notes into additional files"
+            ),
             action="store_true",
             default=False,
         )
@@ -147,7 +162,11 @@ class Options:
         elif not self.args.url:
             self.parser.print_help()
             sys.exit(0)
-        elif (self.args.start and self.args.latest) or (self.args.end and self.args.latest):
+        elif (self.args.start and self.args.latest) or (
+            self.args.end and self.args.latest
+        ):
             self.parser.print_help()
-            raise MutuallyExclusiveArgumentsError(["-s", "--start", "-e", "--end"], ["-l", "--latest"])
+            raise MutuallyExclusiveArgumentsError(
+                ["-s", "--start", "-e", "--end"], ["-l", "--latest"]
+            )
         return self.args

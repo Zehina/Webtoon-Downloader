@@ -66,10 +66,16 @@ class ChapterDownloader:
             await self._export_data(extractor)
             async with self.writer as writer:
                 for n, url in enumerate(urls):
-                    tasks.append(self._create_img_download_task(self.client, url, f"{n:0{num_digits}d}.jpg", writer))
+                    tasks.append(
+                        self._create_img_download_task(
+                            self.client, url, f"{n:0{num_digits}d}.jpg", writer
+                        )
+                    )
                 return await asyncio.gather(*tasks, return_exceptions=True)
         except Exception as exc:
-            raise ChapterDownloadError(self.chapter_info.content_url, exc, chapter_info=self.chapter_info) from exc
+            raise ChapterDownloadError(
+                self.chapter_info.content_url, exc, chapter_info=self.chapter_info
+            ) from exc
 
     def _create_img_download_task(
         self,
@@ -124,11 +130,15 @@ class WebtoonDownloader:
             fetcher = WebtoonFetcher(client)
             resp = await client.get(self.url)
             extractor = WebtoonMainPageExtractor(resp.text)
-            self._directory = self.directory or fileutil.slugify_name(extractor.get_series_title())
+            self._directory = self.directory or fileutil.slugify_name(
+                extractor.get_series_title()
+            )
 
             await self._export_data(extractor)
             viewer_url = extractor.get_chapter_viewer_url()
-            chapter_list = await fetcher.get_chapters_details(viewer_url, self.url, 500, 501)
+            chapter_list = await fetcher.get_chapters_details(
+                viewer_url, self.url, 500, 501
+            )
 
             # Semaphore to limit the number of concurrent chapter downloads
             semaphore = asyncio.Semaphore(self.concurrent_chapters)
@@ -177,7 +187,9 @@ class WebtoonDownloader:
         if not self.exporter:
             return
 
-        await self.exporter.add_series_texts(summary=extractor.get_series_summary(), directory=self._directory)
+        await self.exporter.add_series_texts(
+            summary=extractor.get_series_summary(), directory=self._directory
+        )
 
     async def _get_storage(self, chapter_info: ChapterInfo) -> AioWriter:
         _dir = Path(self._directory)

@@ -32,7 +32,9 @@ class HumanReadableSpeedColumn(ProgressColumn):
         """
         speed = self._calculate_readable_speed(task)
         speed_type = task.fields.get("type", "units")
-        return Text(f"{speed} {speed_type}/s", style="progress.data.speed", justify="center")
+        return Text(
+            f"{speed} {speed_type}/s", style="progress.data.speed", justify="center"
+        )
 
     def _calculate_readable_speed(self, task: Task) -> str:
         """Calculate human-readable speed.
@@ -80,7 +82,9 @@ FILE_FORMAT = "%(asctime)s - %(levelname)-8s - %(message)s - %(filename)s - %(li
 
 # create file handler
 LOG_FILENAME = "webtoon_downloader.log"
-file_handler = RotatingFileHandler(LOG_FILENAME, maxBytes=1000000, backupCount=10, encoding="utf-8")
+file_handler = RotatingFileHandler(
+    LOG_FILENAME, maxBytes=1000000, backupCount=10, encoding="utf-8"
+)
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter(FILE_FORMAT))
 

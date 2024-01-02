@@ -41,7 +41,9 @@ class TextExporter:
         self._write_json = self.export_format in ["json", "all"]
         self._write_text = self.export_format in ["text", "all"]
 
-    async def add_series_texts(self, summary: str | None, directory: str | PathLike[str] | None = None) -> None:
+    async def add_series_texts(
+        self, summary: str | None, directory: str | PathLike[str] | None = None
+    ) -> None:
         if not summary or not self._write_text:
             return
 
@@ -65,7 +67,9 @@ class TextExporter:
         await self._aio_write(directory / f"{chapter:0{self.zeros}d}_title.txt", title)
 
         if notes:
-            await self._aio_write(directory / f"{chapter:0{self.zeros}d}_notes.txt", notes)
+            await self._aio_write(
+                directory / f"{chapter:0{self.zeros}d}_notes.txt", notes
+            )
 
     async def write_data(
         self,

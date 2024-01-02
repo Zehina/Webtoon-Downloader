@@ -35,7 +35,9 @@ def _open_zip_file(container: ZipContainer, mode: ZipWriteMode) -> zipfile.ZipFi
     elif isinstance(container, (str, Path)):
         container_path = Path(container)
         container_path.parent.mkdir(parents=True, exist_ok=True)
-        return zipfile.ZipFile(container_path, mode=mode, compression=zipfile.ZIP_DEFLATED)
+        return zipfile.ZipFile(
+            container_path, mode=mode, compression=zipfile.ZIP_DEFLATED
+        )
     else:
         raise TypeError(container)
 
@@ -122,7 +124,11 @@ class AioFileBufferedZipWriter(AioZipWriter):
         Returns:
             The number of bytes written.
         """
-        temp_file = Path(tempfile.NamedTemporaryFile(delete=False, suffix=".webtoon_downloader.tmp").name)
+        temp_file = Path(
+            tempfile.NamedTemporaryFile(
+                delete=False, suffix=".webtoon_downloader.tmp"
+            ).name
+        )
         self._temp_files.append(temp_file)
         written = 0
         try:

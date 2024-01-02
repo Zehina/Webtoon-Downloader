@@ -1,0 +1,4 @@
+---
+default: true
+MD013: false # line-length
+MD041: false # first-line-heading/first-line-h1
