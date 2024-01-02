@@ -9,12 +9,12 @@
   <p align="cen">
     A simple tool for downloading chapters of any releases hosted on the Webtoons website.
     <br />
-    <br />
     <a href="https://github.com/Zehina/Webtoon-Downloader/issues">Report Bug</a>
     ·
     <a href="https://github.com/Zehina/Webtoon-Downloader/issues">Request Feature</a>
   </p>
 </p>
+<!-- markdownlint-enable -->
 
 [![Release](https://img.shields.io/github/v/release/Zehina/webtoon-downloader)](https://img.shields.io/github/v/release/Zehina/webtoon-downloader)
 [![Build status](https://img.shields.io/github/actions/workflow/status/Zehina/webtoon-downloader/main.yml?branch=main)](https://github.com/Zehina/webtoon-downloader/actions/workflows/main.yml?query=branch%3Amain)
@@ -22,10 +22,7 @@
 [![Commit activity](https://img.shields.io/github/commit-activity/m/Zehina/webtoon-downloader)](https://img.shields.io/github/commit-activity/m/Zehina/webtoon-downloader)
 [![License](https://img.shields.io/github/license/Zehina/webtoon-downloader)](https://img.shields.io/github/license/Zehina/webtoon-downloader)
 
-<p align="center">
-  <img src="docs/imgs/demo.gif">
-</p>
-<!-- markdownlint-enable -->
+![demo](docs/imgs/demo.gif)
 <!-- TABLE OF CONTENTS -->
 
 ## Contents
