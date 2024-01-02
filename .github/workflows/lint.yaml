@@ -18,7 +18,7 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v3
-      - name: "Yamllint"
+      - name: 🟦 Run yamllint
         uses: karancode/yamllint-github-action@master
         with:
           yamllint_file_or_dir: ./
@@ -28,7 +28,7 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v3
-      - name: Lint markdown files
+      - name: 🟦 Run markdownlint
         uses: docker://avtodev/markdown-lint:v1
         with:
           args: "./"
@@ -38,7 +38,7 @@ jobs:
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v3
-      - name: Run JSON Lint
+      - name: 🟦 Run JSON Lint
         env:
           SHOW_ERRORS: true
         run: bash <(curl -s https://raw.githubusercontent.com/CICDToolbox/json-lint/master/pipeline.sh)
@@ -50,7 +50,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Install toml-validator
         run: pip install toml-validator==1.5.1
-      - name: Run toml-validator
+      - name: 🟦 Run toml-validator
         run: toml-validator $(find . -name "*.toml" -type f)
 
   pyinilint:
@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v3
       - name: Install toml-validator
         run: pip install pyinilint==0.17
-      - name: Run pyinilint
+      - name: 🟦 Run pyinilint
         run: |
           FILES_TO_CHECK="$(find . -name "*.ini" -type f) .editorconfig";
           for i in ${FILES_TO_CHECK}; do
