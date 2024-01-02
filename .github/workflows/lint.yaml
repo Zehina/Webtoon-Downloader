@@ -52,3 +52,18 @@ jobs:
         run: pip install toml-validator==1.5.1
       - name: Run toml-validator
         run: toml-validator $(find . -name "*.toml" -type f)
+
+  pyinilint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v3
+      - name: Install toml-validator
+        run: pip install pyinilint==0.17
+      - name: Run pyinilint
+        run: |
+          FILES_TO_CHECK="$(find . -name "*.ini" -type f) .editorconfig";
+          for i in ${FILES_TO_CHECK}; do
+            echo "pyinilint ${i}:"
+            pyinilint ${i}
+          done;
