@@ -15,9 +15,7 @@ from webtoon_downloader.storage import (
 )
 
 
-async def async_iter_image(
-    image: Image, chunk_size: int = 1024
-) -> AsyncIterator[bytes]:
+async def async_iter_image(image: Image, chunk_size: int = 1024) -> AsyncIterator[bytes]:
     with io.BytesIO() as output:
         image.save(output, format="JPEG")
         output.seek(0)
@@ -31,9 +29,7 @@ async def async_iter(data: bytes, chunk_size: int = 1024) -> AsyncIterator[bytes
         yield data[i : i + chunk_size]
 
 
-async def _test_zipwriter(
-    file: str | os.PathLike | io.BytesIO, zip_writer: AioZipWriter
-):
+async def _test_zipwriter(file: str | os.PathLike | io.BytesIO, zip_writer: AioZipWriter):
     test_files = [
         ("test.txt", b"Through Heaven and Earth, I Alone am the Honored One."),
         ("唯", "天上天下 唯我独尊".encode()),

@@ -33,10 +33,7 @@ class WebtoonFetcher:
         # Fallback method: Get the first episode from the list
         response = await self.client.get(f"{series_url}&page=9999")
         soup = BeautifulSoup(response.text, "html.parser")
-        return min(
-            int(episode["data-episode-no"])
-            for episode in soup.find_all("li", {"class": "_episodeItem"})
-        )
+        return min(int(episode["data-episode-no"]) for episode in soup.find_all("li", {"class": "_episodeItem"}))
 
     async def get_chapters_details(
         self,

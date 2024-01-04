@@ -32,9 +32,7 @@ class HumanReadableSpeedColumn(ProgressColumn):
         """
         speed = self._calculate_readable_speed(task)
         speed_type = task.fields.get("type", "units")
-        return Text(
-            f"{speed} {speed_type}/s", style="progress.data.speed", justify="center"
-        )
+        return Text(f"{speed} {speed_type}/s", style="progress.data.speed", justify="center")
 
     def _calculate_readable_speed(self, task: Task) -> str:
         """Calculate human-readable speed.
@@ -49,7 +47,7 @@ class HumanReadableSpeedColumn(ProgressColumn):
         return "?" if speed is None else f"{speed:2.0f}"
 
 
-######################## Header Configuration ################################
+# Header Configuration
 USER_AGENT = (
     (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
@@ -68,7 +66,7 @@ headers = {
 image_headers = {"referer": "https://www.webtoons.com/", **headers}
 ###########################################################################
 
-######################## Log Configuration ################################
+# Log Configuration
 sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[attr-defined]
 console = Console()
 traceback.install(console=console, show_locals=False)
@@ -82,9 +80,7 @@ FILE_FORMAT = "%(asctime)s - %(levelname)-8s - %(message)s - %(filename)s - %(li
 
 # create file handler
 LOG_FILENAME = "webtoon_downloader.log"
-file_handler = RotatingFileHandler(
-    LOG_FILENAME, maxBytes=1000000, backupCount=10, encoding="utf-8"
-)
+file_handler = RotatingFileHandler(LOG_FILENAME, maxBytes=1000000, backupCount=10, encoding="utf-8")
 file_handler.setLevel(logging.DEBUG)
 file_handler.setFormatter(logging.Formatter(FILE_FORMAT))
 
