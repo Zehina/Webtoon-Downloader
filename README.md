@@ -64,19 +64,11 @@ Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python vers
 
 ### Installation
 
-1. Clone the repo
-   ```sh
-   git clone https://github.com/Zehina/Webtoon-Downloader.git
-   ```
-2. Navigate to the project folder
-   ```sh
-   cd Webtoon-Downloader
-   ```
-3. Install this module in the system and generate a `webtoon-downloader`
-   console-script for easier usage
-   ```sh
-   pip install .
-   ```
+Install via `pip` or `pipx`
+
+```sh
+pip install webtoon_downloader
+```
 
 <!-- USAGE EXAMPLES -->
 
