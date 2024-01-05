@@ -21,7 +21,7 @@
 [![License](https://img.shields.io/github/license/Zehina/webtoon-downloader)](https://img.shields.io/github/license/Zehina/webtoon-downloader)
 
 <p align="center">
-  <img src="docs/imgs/demo.svg">
+  <img src="https://raw.githubusercontent.com/Zehina/Webtoon-Downloader/da001b7f9198a842610e09d3e45a31b0f5e0b9e9/docs/imgs/demo.svg">
 </p>
 
 <!-- TABLE OF CONTENTS -->
@@ -55,7 +55,7 @@
 To get a local copy up and running follow these simple steps.
 
 <p align="center">
-  <img src="docs/imgs/help.png">
+  <img src="https://github.com/Zehina/Webtoon-Downloader/blob/master/docs/imgs/help.png?raw=true">
 </p>
 
 ### Compatibility

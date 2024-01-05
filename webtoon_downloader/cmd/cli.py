@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import signal
 import sys
-from signal import SIGINT, SIGTERM
+from typing import Any
 
 import rich_click as click
-from rich.progress import Progress
 
 from webtoon_downloader import logger
 from webtoon_downloader.cmd.exceptions import (
@@ -28,16 +29,8 @@ help_config = click.RichHelpConfiguration(
 )
 
 
-async def download(progress: Progress, opts: WebtoonDownloadOptions) -> None:
-    """The main download command"""
-    with progress:
-        try:
-            await comic.download_webtoon(opts)
-        except asyncio.CancelledError:
-            if not progress:
-                return
-            progress.console.print("[bold red]Stopping Download[/]...")
-            progress.console.print("[red]Download Stopped[/]!")
+class GracefulExit(SystemExit):
+    code = 1
 
 
 @click.command()
@@ -170,13 +163,25 @@ def cli(
     )
 
     loop = asyncio.get_event_loop()
-    main_task = asyncio.ensure_future(download(progress, opts))
-    for signal in [SIGINT, SIGTERM]:
-        loop.add_signal_handler(signal, main_task.cancel)
-    try:
-        loop.run_until_complete(main_task)
-    finally:
-        loop.close()
+
+    def _shutdown() -> None:
+        tasks = asyncio.all_tasks(loop=loop)
+        if progress:
+            progress.console.print("[bold red]Stopping Download[/]...")
+            progress.console.print("[red]Download Stopped[/]!")
+        for t in tasks:
+            t.cancel()
+        raise GracefulExit()
+
+    def _raise_graceful_exit(*_: Any) -> None:
+        loop.create_task(_shutdown())  # type: ignore[func-returns-value]
+
+    with progress:
+        main_task = loop.create_task(comic.download_webtoon(opts))
+        signal.signal(signal.SIGINT, _raise_graceful_exit)
+        signal.signal(signal.SIGTERM, _raise_graceful_exit)
+        with contextlib.suppress(GracefulExit):
+            loop.run_until_complete(main_task)
 
 
 def run() -> None:
