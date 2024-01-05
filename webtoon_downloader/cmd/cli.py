@@ -155,6 +155,7 @@ def cli(
 
     progress_manager = ChapterProgressManager(progress, series_download_task)
     opts = WebtoonDownloadOptions(
+        url=url,
         start=start,
         end=end,
         latest=latest,

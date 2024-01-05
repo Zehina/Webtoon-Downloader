@@ -54,9 +54,10 @@ class WebtoonMainPageExtractor:
         """Extracts the full title series."""
         if hasattr(self, "_title"):
             return self._title
+
         _tag = self._soup.find(class_="subj")
         if not _tag:
-            raise ElementNotFoundError("sub")
+            raise ElementNotFoundError("subj")
 
         title = _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
         object.__setattr__(self, "_title", title)
@@ -87,7 +88,6 @@ class WebtoonMainPageExtractor:
         return viewer_url
 
 
-# TODO: make this class immutable
 @dataclass
 class WebtoonViewerPageExtractor:
     """Extractor for a viewer page of a Webtoon.

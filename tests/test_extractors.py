@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
-import httpx
 import pytest
 
+from webtoon_downloader.core import webtoon
 from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor
 
 
@@ -47,9 +47,9 @@ test_cases = [
     WebtoonTestCase(
         "CanvasWebtoon#1 (Swords)",
         "https://www.webtoons.com/en/canvas/swords/list?title_no=198852",
-        "Swords",
+        "SWORDS: The Webcomic",
         "In a world where everything is a sword, only the sharpest heroes survive! These are the tales of many different adventurers, living their lives in a realm corrupted by Seven Demon Swords.",
-        "https://www.webtoons.com/en/canvas/swords/swords-i/viewer?title_no=198852",
+        "https://www.webtoons.com/en/canvas/swords-the-webcomic/swords-i/viewer?title_no=198852",
     ),
     WebtoonTestCase(
         "CanvasWebtoonMultiAuthors (Crawling Dreams)",
@@ -64,7 +64,7 @@ test_cases = [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("test_case", test_cases, ids=lambda tc: tc.test_id)
 async def test_webtoon_main_page_extractor(test_case: WebtoonTestCase) -> None:
-    async with httpx.AsyncClient(http2=True) as client:
+    async with webtoon.client.new() as client:
         resp = await client.get(test_case.url)
 
     extractor = WebtoonMainPageExtractor(resp.text)

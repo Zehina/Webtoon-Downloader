@@ -19,6 +19,7 @@ class WebtoonDownloadOptions:
     Options for downloading chapters from a Webtoon.
 
     Attributes:
+        url                       : Webtoon URL
         start                     : Starting chapter number. If None, the download starts from the first chapter.
         end                       : Ending chapter number. If None, the download goes until the last chapter.
         latest                    : Flag to download only the latest chapter. Ignores values set by start and end.
@@ -31,6 +32,8 @@ class WebtoonDownloadOptions:
         chapter_progress_callback : Callback function for chapter download progress.
         on_webtoon_fetched        : function invoked after fetching Webtoon information.
     """
+
+    url: str
 
     start: int | None = None
     end: int | None = None

@@ -54,31 +54,31 @@ class WebtoonFetcher:
         """Returns the viewer URL from the scrapped tag object"""
         viewer_url_tag = tag.find("a")
         if not isinstance(viewer_url_tag, Tag):
-            raise ChapterURLFetchError(viewer_url_tag)
+            raise ChapterURLFetchError
         return self._convert_url_domain(str(viewer_url_tag["href"]), target_subdomain=WebtoonDomain.STANDARD)
 
     def _get_chapter_title(self, tag: Tag) -> str:
         """Returns the chapter title from the scrapped tag object"""
         chapter_details_tag = tag.find("p", class_="sub_title")
         if not isinstance(chapter_details_tag, Tag):
-            raise ChapterTitleFetchError(chapter_details_tag)
+            raise ChapterTitleFetchError
         chapter_details_tag = chapter_details_tag.find("span", class_="ellipsis")
         if not isinstance(chapter_details_tag, Tag):
-            raise ChapterTitleFetchError(chapter_details_tag)
+            raise ChapterTitleFetchError
         return chapter_details_tag.text
 
     def _get_data_episode_num(self, tag: Tag) -> int:
         """Returns the chapter data episode number from the scrapped tag object"""
         data_episode_no_tag = tag["data-episode-no"]
         if not isinstance(data_episode_no_tag, str):
-            raise ChapterDataEpisodeNumberFetchError(data_episode_no_tag)
+            raise ChapterDataEpisodeNumberFetchError
         return int(data_episode_no_tag)
 
     def _get_series_title(self, soup: BeautifulSoup) -> str:
         """Returns the series title from the scrapped tag object"""
         series_title_tag = soup.find("p", class_="subj")
         if not isinstance(series_title_tag, Tag):
-            raise SeriesTitleFetchError(series_title_tag)
+            raise SeriesTitleFetchError
         return series_title_tag.text
 
     async def get_chapters_details(

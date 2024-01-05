@@ -198,7 +198,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         start, end = opts.start, opts.end
 
     downloader = WebtoonDownloader(
-        url="https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95",
+        url=opts.url,
         directory=opts.destination,
         start_chapter=start,
         end_chapter=end,

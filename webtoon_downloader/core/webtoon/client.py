@@ -58,6 +58,7 @@ def new() -> httpx.AsyncClient:
         limits=limits,
         http2=True,
         headers=_generate_headers(),
+        follow_redirects=True,
     )
 
 
