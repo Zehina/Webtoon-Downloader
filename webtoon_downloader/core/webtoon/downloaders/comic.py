@@ -12,6 +12,7 @@ import httpx
 from webtoon_downloader.core import file as fileutil
 from webtoon_downloader.core import webtoon
 from webtoon_downloader.core.downloaders.image import ImageDownloader
+from webtoon_downloader.core.exceptions import WebtoonDownloadError
 from webtoon_downloader.core.webtoon.downloaders.callbacks import OnWebtoonFetchCallback
 from webtoon_downloader.core.webtoon.downloaders.chapter import ChapterDownloader
 from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
@@ -26,9 +27,6 @@ from webtoon_downloader.transformers.image import AioImageFormatTransformer
 
 log = logging.getLogger(__name__)
 
-DEFAULT_CHAPTER_LIMIT = 8
-"""Default number of asynchronous workers. More == More likely to get server rate limited"""
-
 
 @dataclass
 class WebtoonDownloader:
@@ -38,15 +36,14 @@ class WebtoonDownloader:
     Manages the entire process of downloading multiple chapters from a Webtoon series, including fetching chapter details, setting up storage, and handling concurrency.
 
     Attributes:
-        url                  : URL of the Webtoon series to download.
-        chapter_downloader   : The downloader responsible for individual chapters.
-        storage_type         : The type of storage to use for the downloaded chapters.
-        start_chapter        : The first chapter to download.
-        end_chapter          : The last chapter to download.
-        concurrent_chapters  : The number of chapters to download concurrently.
-        directory            : The directory where the downloaded chapters will be stored.
-        exporter             : Optional data exporter for exporting series details.
-        on_webtoon_fetched   : Optional callback executed after fetching Webtoon information.
+        url                     : URL of the Webtoon series to download.
+        chapter_downloader      : The downloader responsible for individual chapters.
+        storage_type            : The type of storage to use for the downloaded chapters.
+        start_chapter           : The first chapter to download.
+        end_chapter             : The last chapter to download.
+        directory               : The directory where the downloaded chapters will be stored.
+        exporter                : Optional data exporter for exporting series details.
+        on_webtoon_fetched      : Optional callback executed after fetching Webtoon information.
     """
 
     url: str
@@ -55,7 +52,6 @@ class WebtoonDownloader:
 
     start_chapter: int | None = None
     end_chapter: int | None | Literal["latest"] = None
-    concurrent_chapters: int = DEFAULT_CHAPTER_LIMIT
     directory: str | PathLike[str] | None = None
     exporter: DataExporter | None = None
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
@@ -83,17 +79,16 @@ class WebtoonDownloader:
 
             await self._export_data(extractor)
 
-            # Semaphore to limit the number of concurrent chapter downloads
-            semaphore = asyncio.Semaphore(self.concurrent_chapters)
             tasks = []
             for chapter_info in chapter_list:
-                task = self._create_task(chapter_info, semaphore)
+                task = self._create_task(chapter_info)
                 tasks.append(task)
 
             results = await asyncio.gather(*tasks, return_exceptions=False)
 
         if self.exporter:
             await self.exporter.write_data(self._directory)
+
         return results
 
     async def _get_chapters(self, client: httpx.AsyncClient) -> list[ChapterInfo]:
@@ -113,7 +108,7 @@ class WebtoonDownloader:
 
         return chapters
 
-    def _create_task(self, chapter_info: ChapterInfo, semaphore: asyncio.Semaphore) -> asyncio.Task:
+    def _create_task(self, chapter_info: ChapterInfo) -> asyncio.Task:
         """
         Creates an asynchronous task for downloading a Webtoon chapter.
 
@@ -126,9 +121,8 @@ class WebtoonDownloader:
         """
 
         async def task() -> list[DownloadResult]:
-            async with semaphore:
-                storage = await self._get_storage(chapter_info)
-                return await self.chapter_downloader.run(chapter_info, self._directory, storage)
+            storage = await self._get_storage(chapter_info)
+            return await self.chapter_downloader.run(chapter_info, self._directory, storage)
 
         return asyncio.create_task(task())
 
@@ -180,6 +174,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
     image_downloader = ImageDownloader(
         client=webtoon.client.new_image_client(),
         transformers=[AioImageFormatTransformer(opts.image_format)],
+        concurent_downloads_limit=opts.concurrent_pages,
     )
 
     exporter = DataExporter(opts.exporter_format) if opts.export_metadata else None
@@ -189,6 +184,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         progress_callback=opts.chapter_progress_callback,
         image_downloader=image_downloader,
         file_name_generator=file_name_generator,
+        concurrent_downloads_limit=opts.concurrent_chapters,
     )
 
     end: int | None | Literal["latest"]
@@ -207,5 +203,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         exporter=exporter,
         on_webtoon_fetched=opts.on_webtoon_fetched,
     )
-
-    return await downloader.run()
+    try:
+        return await downloader.run()
+    except Exception as exc:
+        raise WebtoonDownloadError(downloader.url, exc) from exc

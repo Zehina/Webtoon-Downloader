@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 
@@ -27,19 +27,26 @@ class ChapterDownloader:
     Downloads chapters from a Webtoon.
 
     Attributes:
-        client              : HTTP client for making web requests.
-        image_downloader    : Downloader for Webtoon images.
-        file_name_generator : Generator for file names based on chapter and page details.
-        exporter            : Optional data exporter for exporting chapter details.
-        progress_callback   : Optional callback for reporting chapter download progress.
+        client                      : HTTP client for making web requests.
+        image_downloader            : Downloader for Webtoon images.
+        file_name_generator         : Generator for file names based on chapter and page details.
+        concurrent_downloads_limit  : The number of chapters to download concurrently.
+        exporter                    : Optional data exporter for exporting chapter details.
+        progress_callback           : Optional callback for reporting chapter download progress.
     """
 
     client: httpx.AsyncClient
     image_downloader: ImageDownloader
     file_name_generator: FileNameGenerator
+    concurrent_downloads_limit: int
 
     exporter: DataExporter | None = None
     progress_callback: ChapterProgressCallback | None = None
+
+    _semaphore: asyncio.Semaphore = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._semaphore = asyncio.Semaphore(self.concurrent_downloads_limit)
 
     async def run(
         self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter
@@ -59,7 +66,8 @@ class ChapterDownloader:
             ChapterDownloadError in case of error downloading the chapter.
         """
         try:
-            return await self._run(chapter_info, directory, storage)
+            async with self._semaphore:
+                return await self._run(chapter_info, directory, storage)
         except Exception as exc:
             raise ChapterDownloadError(chapter_info.viewer_url, exc, chapter_info=chapter_info) from exc
 
@@ -104,7 +112,9 @@ class ChapterDownloader:
         """
 
         async def _task() -> ImageDownloadResult:
+            log.debug('Downloading: "%s" from "%s" from chapter "%s"', name, url, chapter_info.viewer_url)
             res = await self.image_downloader.run(url, name, storage)
+            log.debug('Finished downloading: "%s" from "%s" from chapter "%s"', name, url, chapter_info.viewer_url)
             await self._report_progress(chapter_info, "PageCompleted")
             return res
 

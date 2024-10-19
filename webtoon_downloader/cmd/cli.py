@@ -10,17 +10,23 @@ import rich_click as click
 
 from webtoon_downloader import logger
 from webtoon_downloader.cmd.exceptions import (
-    LatestWithStartOrEndError,
-    SeparateOptionWithNonImageSaveAsError,
+    CLIInvalidConcurrentCountError,
+    CLIInvalidStartAndEndRangeError,
+    CLILatestWithStartOrEndError,
+    CLISeparateOptionWithNonImageSaveAsError,
     handle_deprecated_options,
 )
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress
 from webtoon_downloader.core.webtoon.downloaders import comic
-from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
+from webtoon_downloader.core.webtoon.downloaders.options import (
+    DEFAULT_CONCURENT_CHAPTER_DOWNLOADS,
+    DEFAULT_CONCURENT_IMAGE_DOWNLOADS,
+    StorageType,
+    WebtoonDownloadOptions,
+)
 from webtoon_downloader.core.webtoon.exporter import DataExporterFormat
 from webtoon_downloader.transformers.image import ImageFormat
 
-log, console = logger.setup()
 help_config = click.RichHelpConfiguration(
     show_metavars_column=False,
     append_metavars_help=True,
@@ -31,6 +37,13 @@ help_config = click.RichHelpConfiguration(
 
 class GracefulExit(SystemExit):
     code = 1
+
+
+def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | None:
+    if value is not None and value <= 0:
+        raise CLIInvalidConcurrentCountError(value)
+
+    return value
 
 
 @click.command()
@@ -44,12 +57,7 @@ class GracefulExit(SystemExit):
     type=int,
     help="Start chapter",
 )
-@click.option(
-    "--end",
-    "-e",
-    type=int,
-    help="End chapter",
-)
+@click.option("--end", "-e", type=int, help="End chapter")
 @click.option(
     "--latest",
     "-l",
@@ -113,6 +121,32 @@ class GracefulExit(SystemExit):
     hidden=True,
     help="[Deprecated] Use --export-metadata instead",
 )
+@click.option(
+    "--concurrent-chapters",
+    type=int,
+    default=DEFAULT_CONCURENT_CHAPTER_DOWNLOADS,
+    callback=validate_concurrent_count,
+    help="Number of workers for concurrent chapter downloads",
+)
+@click.option(
+    "--concurrent-pages",
+    type=int,
+    default=DEFAULT_CONCURENT_IMAGE_DOWNLOADS,
+    callback=validate_concurrent_count,
+    help="Number of workers for concurrent image downloads. This value is shared between all concurrent chapter downloads.",
+)
+@click.option(
+    "--log-to-file",
+    type=bool,
+    is_flag=True,
+    help="Write debug logs to the log file",
+)
+@click.option(
+    "--rich-traceback",
+    type=bool,
+    is_flag=True,
+    help="Show rich traceback on error",
+)
 def cli(
     ctx: click.Context,
     url: str,
@@ -125,7 +159,16 @@ def cli(
     export_metadata: bool,
     export_format: DataExporterFormat,
     save_as: StorageType,
+    concurrent_chapters: int,
+    concurrent_pages: int,
+    log_to_file: bool,
+    rich_traceback: bool,
 ) -> None:
+    _, console = logger.setup(
+        log_filename="webtoon_downloader.log" if log_to_file else None,
+        enable_rich_traceback=rich_traceback,
+    )
+
     loop = asyncio.get_event_loop()
     if not url:
         console.print(
@@ -133,9 +176,11 @@ def cli(
         )
         ctx.exit(1)
     if latest and (start or end):
-        raise LatestWithStartOrEndError(ctx)
+        raise CLILatestWithStartOrEndError(ctx)
     if separate and (save_as != "images"):
-        raise SeparateOptionWithNonImageSaveAsError(ctx)
+        raise CLISeparateOptionWithNonImageSaveAsError(ctx)
+    if start is not None and end is not None and start > end:
+        raise CLIInvalidStartAndEndRangeError(ctx)
 
     progress = init_progress(console)
     series_download_task = progress.add_task(
@@ -160,6 +205,8 @@ def cli(
         save_as=save_as,
         chapter_progress_callback=progress_manager.advance_progress,
         on_webtoon_fetched=progress_manager.on_webtoon_fetched,
+        concurrent_chapters=concurrent_chapters,
+        concurrent_pages=concurrent_pages,
     )
 
     loop = asyncio.get_event_loop()
@@ -188,4 +235,5 @@ def run() -> None:
     """CLI entrypoint"""
     if len(sys.argv) <= 1:
         sys.argv.append("--help")
+
     cli()  # pylint: disable=no-value-for-parameter

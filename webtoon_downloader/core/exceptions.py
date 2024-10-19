@@ -16,7 +16,15 @@ class DownloadError(Exception):
     def __str__(self) -> str:
         if self.message:
             return self.message
-        return f'Failed to download from "{self.url}" due to: {self.cause}'
+        if self.cause:
+            return f'Failed to download from "{self.url}" due to: {self.cause}'
+        else:
+            return f'Failed to download from "{self.url}"'
+
+
+@dataclass
+class WebtoonDownloadError(DownloadError):
+    """Exception raised for Webtoon download errors"""
 
 
 @dataclass

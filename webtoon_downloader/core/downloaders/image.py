@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from dataclasses import dataclass, field
 from typing import Awaitable, Callable
 
@@ -8,6 +10,8 @@ import httpx
 from webtoon_downloader.core.exceptions import ImageDownloadError
 from webtoon_downloader.storage import AioWriter
 from webtoon_downloader.transformers.base import AioImageTransformer
+
+log = logging.getLogger(__name__)
 
 ImageProgressCallback = Callable[[int], Awaitable[None]]
 """
@@ -32,8 +36,14 @@ class ImageDownloadResult:
 @dataclass
 class ImageDownloader:
     client: httpx.AsyncClient
+    concurent_downloads_limit: int
     transformers: list[AioImageTransformer] = field(default_factory=list)
     progress_callback: ImageProgressCallback | None = None
+
+    _semaphore: asyncio.Semaphore = field(init=False)
+
+    def __post_init__(self) -> None:
+        self._semaphore = asyncio.Semaphore(self.concurent_downloads_limit)
 
     async def run(self, url: str, target: str, storage: AioWriter) -> ImageDownloadResult:
         """
@@ -50,7 +60,8 @@ class ImageDownloader:
             ImageDownloadError: If an error occurs during the download process.
         """
         try:
-            return await self._download_image(self.client, url, target, storage)
+            async with self._semaphore:
+                return await self._download_image(self.client, url, target, storage)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
 

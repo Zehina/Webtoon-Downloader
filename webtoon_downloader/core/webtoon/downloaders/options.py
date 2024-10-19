@@ -13,6 +13,13 @@ StorageType: TypeAlias = Literal["images", "zip", "cbz", "pdf"]
 """Valid option for storing the downloaded images."""
 
 
+DEFAULT_CONCURENT_IMAGE_DOWNLOADS = 120
+"""Default number of asynchronous image download workers. More == More likely to get server rate limited"""
+
+DEFAULT_CONCURENT_CHAPTER_DOWNLOADS = 6
+"""Default number of asynchronous chapter download workers. This does not affect rate limiting or download speed since that is all controlled by the number of concurrent image downloads."""
+
+
 @dataclass
 class WebtoonDownloadOptions:
     """
@@ -31,6 +38,8 @@ class WebtoonDownloadOptions:
         image_format              : Format to save chapter images.
         chapter_progress_callback : Callback function for chapter download progress.
         on_webtoon_fetched        : function invoked after fetching Webtoon information.
+        concurrent_chapters       : The number of chapters to download concurrently.
+        concurrent_pages         : The number of images to download concurrently.
     """
 
     url: str
@@ -49,3 +58,6 @@ class WebtoonDownloadOptions:
 
     chapter_progress_callback: ChapterProgressCallback | None = None
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
+
+    concurrent_chapters: int = DEFAULT_CONCURENT_CHAPTER_DOWNLOADS
+    concurrent_pages: int = DEFAULT_CONCURENT_IMAGE_DOWNLOADS

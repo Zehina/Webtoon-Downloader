@@ -1,9 +1,7 @@
 import asyncio
 import logging
-import tempfile
 from logging import FileHandler
-from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import aiofiles
 import httpx
@@ -13,7 +11,11 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 
-def setup() -> Tuple[logging.Logger, Console]:
+def setup(
+    log_level: int = logging.DEBUG,
+    log_filename: Optional[str] = None,
+    enable_rich_traceback: bool = True,
+) -> Tuple[logging.Logger, Console]:
     """
     Sets up the logging system and a rich console for the application.
 
@@ -24,30 +26,28 @@ def setup() -> Tuple[logging.Logger, Console]:
         The configured logger and the rich console object.
     """
     console = Console()
-    traceback.install(
-        console=console,
-        show_locals=False,
-        suppress=[
-            click,
-            httpx,
-            aiofiles,
-            asyncio,
-        ],
-    )
-    log = logging.getLogger(__name__)
-    log.setLevel(logging.DEBUG)
+    if enable_rich_traceback:
+        traceback.install(console=console, show_locals=False, suppress=[click, httpx, aiofiles, asyncio])
+    log = logging.getLogger()
+    log.setLevel(log_level)
 
-    file_format = "%(asctime)s - %(levelname)-8s - %(message)s - %(filename)s - %(lineno)d - %(name)s"
-    log_filename = Path(tempfile.gettempdir()) / "webtoon_downloader.log"
-
-    # Create file handler for logging
-    file_handler = FileHandler(log_filename, encoding="utf-8")
-    file_handler.setLevel(logging.DEBUG)
-    file_handler.setFormatter(logging.Formatter(file_format))
-
-    # Create console handler with a higher log level
-    console_handler = RichHandler(console=console, level=logging.WARNING, rich_tracebacks=True, markup=True)
-    log.addHandler(file_handler)
+    # Create the console handler
+    console_handler = RichHandler(console=console, level=logging.WARN, rich_tracebacks=True, markup=True)
     log.addHandler(console_handler)
+
+    # Create the file handler for logging if a filename is provided
+    if log_filename:
+        file_log_format = "%(asctime)s - %(levelname)-6s - [%(name)s] - %(message)s - %(filename)s - %(lineno)d"
+        file_handler = FileHandler(log_filename, encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(logging.Formatter(file_log_format))
+        log.addHandler(file_handler)
+
+    logging.getLogger("httpx").setLevel(logging.INFO)
+    logging.getLogger("hpack").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.INFO)
+    logging.getLogger("click").setLevel(logging.WARNING)
+    logging.getLogger("asyncio").setLevel(logging.INFO)
+    logging.getLogger("aiofiles").setLevel(logging.INFO)
 
     return log, console
