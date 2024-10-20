@@ -14,7 +14,7 @@ from webtoon_downloader.core.exceptions import (
     ChapterTitleFetchError,
     ChapterURLFetchError,
     SeriesTitleFetchError,
-    WebtoonFetchError,
+    WebtoonGetError,
 )
 from webtoon_downloader.core.webtoon import client
 from webtoon_downloader.core.webtoon.models import ChapterInfo
@@ -46,6 +46,8 @@ class WebtoonFetcher:
 
     def _convert_url_domain(self, viewer_url: str, target_subdomain: WebtoonDomain) -> str:
         """Converts the provided Webtoon URL to the specified subdomain (default 'm')."""
+        viewer_url = viewer_url.replace("\\", "/")
+
         f = furl(viewer_url)
         domain_parts = f.host.split(".")
         domain_parts = [part for part in domain_parts if part not in [WebtoonDomain.MOBILE, WebtoonDomain.STANDARD]]
@@ -57,7 +59,7 @@ class WebtoonFetcher:
         """Returns the viewer URL from the scrapped tag object"""
         viewer_url_tag = tag.find("a")
         if not isinstance(viewer_url_tag, Tag):
-            raise ChapterURLFetchError(self.series_url)
+            raise ChapterURLFetchError
 
         return self._convert_url_domain(str(viewer_url_tag["href"]), target_subdomain=WebtoonDomain.STANDARD)
 
@@ -65,11 +67,11 @@ class WebtoonFetcher:
         """Returns the chapter title from the scrapped tag object"""
         chapter_details_tag = tag.find("p", class_="sub_title")
         if not isinstance(chapter_details_tag, Tag):
-            raise ChapterTitleFetchError(self.series_url)
+            raise ChapterTitleFetchError
 
         chapter_details_tag = chapter_details_tag.find("span", class_="ellipsis")
         if not isinstance(chapter_details_tag, Tag):
-            raise ChapterTitleFetchError(self.series_url)
+            raise ChapterTitleFetchError
 
         return chapter_details_tag.text
 
@@ -77,7 +79,7 @@ class WebtoonFetcher:
         """Returns the chapter data episode number from the scrapped tag object"""
         data_episode_no_tag = tag["data-episode-no"]
         if not isinstance(data_episode_no_tag, str):
-            raise ChapterDataEpisodeNumberFetchError(self.series_url)
+            raise ChapterDataEpisodeNumberFetchError
 
         return int(data_episode_no_tag)
 
@@ -85,7 +87,7 @@ class WebtoonFetcher:
         """Returns the series title from the scrapped tag object"""
         series_title_tag = soup.find("p", class_="subj")
         if not isinstance(series_title_tag, Tag):
-            raise SeriesTitleFetchError(self.series_url)
+            raise SeriesTitleFetchError
 
         return series_title_tag.text
 
@@ -113,10 +115,7 @@ class WebtoonFetcher:
             mobile_url, headers={**self.client.headers, "user-agent": client.get_mobile_ua()}
         )
         if response.status_code != 200:
-            raise WebtoonFetchError(
-                series_url,
-                f"Failed to fetch Webtoon information from {series_url}. Status code: {response.status_code}",
-            )
+            raise WebtoonGetError(series_url, response.status_code)
 
         soup = BeautifulSoup(response.text, "html.parser")
         chapter_items: Sequence[Tag] = soup.findAll("li", class_="_episodeItem")

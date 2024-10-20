@@ -17,6 +17,13 @@ class DownloadError(Exception):
         if self.message:
             return self.message
 
+        if self.cause:
+            cause_msg = str(self.cause)
+            if cause_msg:
+                return f"Failed to download from {self.url} => {cause_msg}"
+
+            return f"Failed to download from {self.url} due to: {self.cause.__class__.__name__}"
+
         return f"Failed to download from {self.url}"
 
 
@@ -38,30 +45,21 @@ class ChapterDownloadError(DownloadError):
 
 
 @dataclass
-class FetchError(Exception):
-    """Exception raised due to a fetch error"""
+class WebtoonGetError(Exception):
+    """Exception raised due to a fetch error when retreiving Webtoon information"""
 
     series_url: str
-    message: str | None = None
+    status_code: int
 
     def __str__(self) -> str:
-        if self.message:
-            return self.message
-        else:
-            return f"Failed to fetch from {self.series_url}"
+        return f"Failed to fetch Webtoon information from {self.series_url}. Status code: {self.status_code}"
 
 
 @dataclass
-class WebtoonFetchError(FetchError):
-    """Exception raised due to a fetch error when retreiving Webtoon information"""
+class FetchError(Exception):
+    """Exception raised due to a fetch error"""
 
-    message: str | None = None
-
-    def __str__(self) -> str:
-        if self.message:
-            return self.message
-        else:
-            return f"Failed to fetch Webtoon information from {self.series_url}"
+    msg: str | None = None
 
 
 @dataclass
@@ -69,7 +67,10 @@ class ChapterURLFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the chapter URL"""
 
     def __str__(self) -> str:
-        return f"Failed to fetch chapter URL from {self.series_url}"
+        if self.msg:
+            return self.msg
+
+        return "Failed to fetch chapter URL"
 
 
 @dataclass
@@ -77,7 +78,10 @@ class ChapterTitleFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the chapter title"""
 
     def __str__(self) -> str:
-        return f"Failed to fetch chapter title from {self.series_url}"
+        if self.msg:
+            return self.msg
+
+        return "Failed to fetch chapter title"
 
 
 @dataclass
@@ -85,7 +89,10 @@ class ChapterDataEpisodeNumberFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving data chapter number"""
 
     def __str__(self) -> str:
-        return f"Failed to fetch data episode number from {self.series_url}"
+        if self.msg:
+            return self.msg
+
+        return "Failed to fetch data episode number"
 
 
 @dataclass
@@ -93,4 +100,7 @@ class SeriesTitleFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the series title"""
 
     def __str__(self) -> str:
-        return f"Failed to fetch series title from {self.series_url}"
+        if self.msg:
+            return self.msg
+
+        return "Failed to fetch series title"

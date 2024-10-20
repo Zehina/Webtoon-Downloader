@@ -156,6 +156,7 @@ def cli(
     log, console = logger.setup(
         log_filename="webtoon_downloader.log" if debug else None,
         enable_traceback=debug,
+        enable_console_logging=debug,
     )
 
     loop = asyncio.get_event_loop()
@@ -219,8 +220,9 @@ def cli(
         with contextlib.suppress(GracefulExit):
             try:
                 loop.run_until_complete(main_task)
-            except WebtoonDownloadError:
-                log.exception("The webtoon downloader encountered an error")
+            except WebtoonDownloadError as exc:
+                console.print(f"[red][bold]Download error:[/bold] {exc}[/]")
+                log.exception("Download error")
 
 
 def run() -> None:

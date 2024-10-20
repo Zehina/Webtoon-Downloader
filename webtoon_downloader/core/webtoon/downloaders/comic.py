@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
@@ -57,6 +58,10 @@ class WebtoonDownloader:
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
 
     _directory: Path = field(init=False)
+
+    def __post_init__(self) -> None:
+        # sanitize url
+        self.url = re.sub(r"\\(?=[?=&])", "", self.url)
 
     async def run(self) -> list[DownloadResult]:
         """

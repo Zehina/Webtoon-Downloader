@@ -15,6 +15,7 @@ from rich.logging import RichHandler
 def setup(
     log_level: int = logging.DEBUG,
     log_filename: Optional[str] = None,
+    enable_console_logging: bool = False,
     enable_traceback: bool = False,
 ) -> Tuple[logging.Logger, Console]:
     """
@@ -35,18 +36,22 @@ def setup(
             show_locals=False,
             suppress=[click, httpx, aiofiles, asyncio],
         )
+
     log = logging.getLogger()
     log.setLevel(log_level)
 
     # Create the console handler
-    console_handler = RichHandler(console=console, level=logging.WARN, rich_tracebacks=enable_traceback, markup=True)
-    log.addHandler(console_handler)
+    if enable_console_logging:
+        console_handler = RichHandler(console=console, level=log_level, rich_tracebacks=enable_traceback, markup=True)
+        log.addHandler(console_handler)
+    else:
+        log.addHandler(logging.NullHandler())
 
     # Create the file handler for logging if a filename is provided
     if log_filename:
         file_log_format = "%(asctime)s - %(levelname)-6s - [%(name)s] - %(message)s - %(filename)s - %(lineno)d"
         file_handler = FileHandler(log_filename, encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)
+        file_handler.setLevel(log_level)
         file_handler.setFormatter(logging.Formatter(file_log_format))
         log.addHandler(file_handler)
 
