@@ -16,10 +16,8 @@ class DownloadError(Exception):
     def __str__(self) -> str:
         if self.message:
             return self.message
-        if self.cause:
-            return f'Failed to download from {self.url} caused by "{self.cause.__class__.__name__}"'
-        else:
-            return f'Failed to download from "{self.url}"'
+
+        return f"Failed to download from {self.url}"
 
 
 @dataclass
@@ -44,9 +42,26 @@ class FetchError(Exception):
     """Exception raised due to a fetch error"""
 
     series_url: str
+    message: str | None = None
 
     def __str__(self) -> str:
-        return f"Failed to fetch from {self.series_url}"
+        if self.message:
+            return self.message
+        else:
+            return f"Failed to fetch from {self.series_url}"
+
+
+@dataclass
+class WebtoonFetchError(FetchError):
+    """Exception raised due to a fetch error when retreiving Webtoon information"""
+
+    message: str | None = None
+
+    def __str__(self) -> str:
+        if self.message:
+            return self.message
+        else:
+            return f"Failed to fetch Webtoon information from {self.series_url}"
 
 
 @dataclass

@@ -14,6 +14,7 @@ from webtoon_downloader.core.exceptions import (
     ChapterTitleFetchError,
     ChapterURLFetchError,
     SeriesTitleFetchError,
+    WebtoonFetchError,
 )
 from webtoon_downloader.core.webtoon import client
 from webtoon_downloader.core.webtoon.models import ChapterInfo
@@ -111,6 +112,12 @@ class WebtoonFetcher:
         response = await self.client.get(
             mobile_url, headers={**self.client.headers, "user-agent": client.get_mobile_ua()}
         )
+        if response.status_code != 200:
+            raise WebtoonFetchError(
+                series_url,
+                f"Failed to fetch Webtoon information from {series_url}. Status code: {response.status_code}",
+            )
+
         soup = BeautifulSoup(response.text, "html.parser")
         chapter_items: Sequence[Tag] = soup.findAll("li", class_="_episodeItem")
         series_title = self._get_series_title(soup)
