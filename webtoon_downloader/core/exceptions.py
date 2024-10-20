@@ -17,7 +17,7 @@ class DownloadError(Exception):
         if self.message:
             return self.message
         if self.cause:
-            return f'Failed to download from "{self.url}" due to: {self.cause}'
+            return f'Failed to download from {self.url} caused by "{self.cause.__class__.__name__}"'
         else:
             return f'Failed to download from "{self.url}"'
 
@@ -39,21 +39,43 @@ class ChapterDownloadError(DownloadError):
     chapter_info: ChapterInfo | None = None
 
 
+@dataclass
 class FetchError(Exception):
     """Exception raised due to a fetch error"""
 
+    series_url: str
 
+    def __str__(self) -> str:
+        return f"Failed to fetch from {self.series_url}"
+
+
+@dataclass
 class ChapterURLFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the chapter URL"""
 
+    def __str__(self) -> str:
+        return f"Failed to fetch chapter URL from {self.series_url}"
 
+
+@dataclass
 class ChapterTitleFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the chapter title"""
 
+    def __str__(self) -> str:
+        return f"Failed to fetch chapter title from {self.series_url}"
 
+
+@dataclass
 class ChapterDataEpisodeNumberFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving data chapter number"""
 
+    def __str__(self) -> str:
+        return f"Failed to fetch data episode number from {self.series_url}"
 
+
+@dataclass
 class SeriesTitleFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the series title"""
+
+    def __str__(self) -> str:
+        return f"Failed to fetch series title from {self.series_url}"

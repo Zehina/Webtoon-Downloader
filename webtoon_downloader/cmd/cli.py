@@ -17,6 +17,7 @@ from webtoon_downloader.cmd.exceptions import (
     handle_deprecated_options,
 )
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress
+from webtoon_downloader.core.exceptions import WebtoonDownloadError
 from webtoon_downloader.core.webtoon.downloaders import comic
 from webtoon_downloader.core.webtoon.downloaders.options import (
     DEFAULT_CONCURENT_CHAPTER_DOWNLOADS,
@@ -135,18 +136,7 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     callback=validate_concurrent_count,
     help="Number of workers for concurrent image downloads. This value is shared between all concurrent chapter downloads.",
 )
-@click.option(
-    "--log-to-file",
-    type=bool,
-    is_flag=True,
-    help="Write debug logs to the log file",
-)
-@click.option(
-    "--rich-traceback",
-    type=bool,
-    is_flag=True,
-    help="Show rich traceback on error",
-)
+@click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
 def cli(
     ctx: click.Context,
     url: str,
@@ -161,12 +151,11 @@ def cli(
     save_as: StorageType,
     concurrent_chapters: int,
     concurrent_pages: int,
-    log_to_file: bool,
-    rich_traceback: bool,
+    debug: bool,
 ) -> None:
-    _, console = logger.setup(
-        log_filename="webtoon_downloader.log" if log_to_file else None,
-        enable_rich_traceback=rich_traceback,
+    log, console = logger.setup(
+        log_filename="webtoon_downloader.log" if debug else None,
+        enable_traceback=debug,
     )
 
     loop = asyncio.get_event_loop()
@@ -228,7 +217,10 @@ def cli(
         signal.signal(signal.SIGINT, _raise_graceful_exit)
         signal.signal(signal.SIGTERM, _raise_graceful_exit)
         with contextlib.suppress(GracefulExit):
-            loop.run_until_complete(main_task)
+            try:
+                loop.run_until_complete(main_task)
+            except WebtoonDownloadError:
+                log.exception("The webtoon downloader encountered an error")
 
 
 def run() -> None:

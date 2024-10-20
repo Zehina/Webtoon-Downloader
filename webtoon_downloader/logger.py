@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 from logging import FileHandler
 from typing import Optional, Tuple
 
@@ -14,7 +15,7 @@ from rich.logging import RichHandler
 def setup(
     log_level: int = logging.DEBUG,
     log_filename: Optional[str] = None,
-    enable_rich_traceback: bool = True,
+    enable_traceback: bool = False,
 ) -> Tuple[logging.Logger, Console]:
     """
     Sets up the logging system and a rich console for the application.
@@ -26,13 +27,19 @@ def setup(
         The configured logger and the rich console object.
     """
     console = Console()
-    if enable_rich_traceback:
-        traceback.install(console=console, show_locals=False, suppress=[click, httpx, aiofiles, asyncio])
+    if not enable_traceback:
+        sys.tracebacklimit = 0
+    else:
+        traceback.install(
+            console=console,
+            show_locals=False,
+            suppress=[click, httpx, aiofiles, asyncio],
+        )
     log = logging.getLogger()
     log.setLevel(log_level)
 
     # Create the console handler
-    console_handler = RichHandler(console=console, level=logging.WARN, rich_tracebacks=True, markup=True)
+    console_handler = RichHandler(console=console, level=logging.WARN, rich_tracebacks=enable_traceback, markup=True)
     log.addHandler(console_handler)
 
     # Create the file handler for logging if a filename is provided

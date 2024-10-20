@@ -101,7 +101,7 @@ class WebtoonDownloader:
         Returns:
             A list of `ChapterInfo` objects containing information about each chapter.
         """
-        fetcher = WebtoonFetcher(client)
+        fetcher = WebtoonFetcher(client, self.url)
         chapters = await fetcher.get_chapters_details(self.url, self.start_chapter, self.end_chapter)
         if self.on_webtoon_fetched:
             await self.on_webtoon_fetched(chapters)
