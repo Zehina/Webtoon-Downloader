@@ -136,6 +136,11 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     callback=validate_concurrent_count,
     help="Number of workers for concurrent image downloads. This value is shared between all concurrent chapter downloads.",
 )
+@click.option(
+    "--proxy",
+    type=str,
+    help="proxy address to use for making requests. e.g. http://127.0.0.1:7890",
+)
 @click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
 def cli(
     ctx: click.Context,
@@ -151,6 +156,7 @@ def cli(
     save_as: StorageType,
     concurrent_chapters: int,
     concurrent_pages: int,
+    proxy: str,
     debug: bool,
 ) -> None:
     log, console = logger.setup(
@@ -197,6 +203,7 @@ def cli(
         on_webtoon_fetched=progress_manager.on_webtoon_fetched,
         concurrent_chapters=concurrent_chapters,
         concurrent_pages=concurrent_pages,
+        proxy=proxy,
     )
 
     loop = asyncio.get_event_loop()

@@ -39,7 +39,8 @@ class WebtoonDownloadOptions:
         chapter_progress_callback : Callback function for chapter download progress.
         on_webtoon_fetched        : function invoked after fetching Webtoon information.
         concurrent_chapters       : The number of chapters to download concurrently.
-        concurrent_pages         : The number of images to download concurrently.
+        concurrent_pages          : The number of images to download concurrently.
+        proxy:                    : proxy address to use for making requests.
     """
 
     url: str
@@ -61,3 +62,5 @@ class WebtoonDownloadOptions:
 
     concurrent_chapters: int = DEFAULT_CONCURENT_CHAPTER_DOWNLOADS
     concurrent_pages: int = DEFAULT_CONCURENT_IMAGE_DOWNLOADS
+
+    proxy: str | None = None

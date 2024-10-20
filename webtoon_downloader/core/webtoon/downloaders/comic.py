@@ -46,6 +46,7 @@ class WebtoonDownloader:
         directory               : The directory where the downloaded chapters will be stored.
         exporter                : Optional data exporter for exporting series details.
         on_webtoon_fetched      : Optional callback executed after fetching Webtoon information.
+        proxy                   : Optional proxy address for making requests.
     """
 
     url: str
@@ -57,6 +58,7 @@ class WebtoonDownloader:
     directory: str | PathLike[str] | None = None
     exporter: DataExporter | None = None
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
+    proxy: str | None = None
 
     _directory: Path = field(init=False)
 
@@ -77,7 +79,7 @@ class WebtoonDownloader:
         Returns:
             A list containing download results for each chapter.
         """
-        async with webtoon.client.new() as client:
+        async with webtoon.client.new(self.proxy) as client:
             chapter_list = await self._get_chapters(client)
             resp = await client.get(self.url)
             extractor = WebtoonMainPageExtractor(resp.text)
@@ -182,14 +184,14 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         else NonSeparateFileNameGenerator()
     )
     image_downloader = ImageDownloader(
-        client=webtoon.client.new_image_client(),
+        client=webtoon.client.new_image_client(opts.proxy),
         transformers=[AioImageFormatTransformer(opts.image_format)],
         concurent_downloads_limit=opts.concurrent_pages,
     )
 
     exporter = DataExporter(opts.exporter_format) if opts.export_metadata else None
     chapter_downloader = ChapterDownloader(
-        client=webtoon.client.new(),
+        client=webtoon.client.new(opts.proxy),
         exporter=exporter,
         progress_callback=opts.chapter_progress_callback,
         image_downloader=image_downloader,

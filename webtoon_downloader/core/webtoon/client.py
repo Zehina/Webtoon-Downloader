@@ -46,7 +46,7 @@ def _generate_headers() -> dict[str, str]:
     }
 
 
-def new() -> httpx.AsyncClient:
+def new(proxy: str | None = None) -> httpx.AsyncClient:
     """
     Creates and returns an asynchronous HTTP client configured for scrapping webtoon website.
 
@@ -59,10 +59,11 @@ def new() -> httpx.AsyncClient:
         http2=True,
         headers=_generate_headers(),
         follow_redirects=True,
+        proxy=proxy,
     )
 
 
-def new_image_client() -> httpx.AsyncClient:
+def new_image_client(proxy: str | None = None) -> httpx.AsyncClient:
     """
     Creates and returns an asynchronous HTTP client configured for downloading webtoon images.
 
@@ -77,4 +78,5 @@ def new_image_client() -> httpx.AsyncClient:
             "referer": "https://www.webtoons.com/",
             **_generate_headers(),
         },
+        proxy=proxy,
     )
