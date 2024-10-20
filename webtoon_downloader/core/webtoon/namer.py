@@ -1,3 +1,5 @@
+import os
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -5,6 +7,18 @@ from typing import Protocol, runtime_checkable
 from furl import furl
 
 from webtoon_downloader.core.webtoon.models import ChapterInfo, PageInfo
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitizes a filename by replacing all non-alphanumeric characters with underscores on Windows.
+    """
+    if os.name == "nt":
+        filename = re.sub(r"[^\w\.-]", "_", filename)
+        if filename[-1] == "_":
+            filename = filename[:-1]
+
+    return filename
 
 
 @runtime_checkable
@@ -47,7 +61,8 @@ class SeparateFileNameGenerator(FileNameGenerator):
         Returns the directory path for storing the given chapter's data.
         """
         if self.use_chapter_title_directories:
-            return Path(chapter_info.title)
+            return Path(sanitize_filename(chapter_info.title))
+
         return Path(f"{chapter_info.number:0{len(str(chapter_info.total_chapters))}d}")
 
     def get_page_filename(self, page_info: PageInfo) -> str:
@@ -77,7 +92,7 @@ class NonSeparateFileNameGenerator(FileNameGenerator):
     are stored in the same directory.
     """
 
-    def get_chapter_directory(self, chapter_info: ChapterInfo) -> Path:  # type ignore
+    def get_chapter_directory(self, _: ChapterInfo) -> Path:  # type ignore
         """
         Returns the root directory for storing pages when they are not separated by chapters.
         """
