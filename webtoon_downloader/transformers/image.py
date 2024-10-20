@@ -83,7 +83,7 @@ class AioImageFormatTransformer:
             log.debug("Running image convertion to %s", self.target_format)
             transformed_stream = await self._run_in_executor(self._sync_transform, bytes_io_stream)
         else:
-            log.debug("No transformation needed")
+            log.debug('No transformation needed to convert to %s the target "%s"', self.target_format, target_name)
             transformed_stream = bytes_io_stream
             transformed_stream.seek(0)
 
