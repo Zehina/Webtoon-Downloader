@@ -11,6 +11,7 @@ class DownloadError(Exception):
 
     url: str
     cause: Exception
+    base_message: str = "Failed to download from"
     message: str | None = field(default=None)
 
     def __str__(self) -> str:
@@ -20,26 +21,32 @@ class DownloadError(Exception):
         if self.cause:
             cause_msg = str(self.cause)
             if cause_msg:
-                return f"Failed to download from {self.url} => {cause_msg}"
+                return f"{self.base_message} {self.url} => {cause_msg}"
 
-            return f"Failed to download from {self.url} due to: {self.cause.__class__.__name__}"
+            return f"{self.base_message} {self.url} due to: {self.cause.__class__.__name__}"
 
-        return f"Failed to download from {self.url}"
+        return f"{self.base_message} {self.url}"
 
 
 @dataclass
 class WebtoonDownloadError(DownloadError):
     """Exception raised for Webtoon download errors"""
 
+    base_message: str = "Failed to download Webtoon"
+
 
 @dataclass
 class ImageDownloadError(DownloadError):
     """Exception raised for image download errors"""
 
+    base_message: str = "downloading image"
+
 
 @dataclass
 class ChapterDownloadError(DownloadError):
     """Exception raised for chapter download errors"""
+
+    base_message: str = "downloading chapter"
 
     chapter_info: ChapterInfo | None = None
 
