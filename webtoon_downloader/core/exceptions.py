@@ -10,7 +10,7 @@ class DownloadError(Exception):
     """BaseException raised for download errors."""
 
     url: str
-    cause: Exception
+    cause: Exception | None = None
     base_message: str = "Failed to download from"
     message: str | None = field(default=None)
 
@@ -21,11 +21,11 @@ class DownloadError(Exception):
         if self.cause:
             cause_msg = str(self.cause)
             if cause_msg:
-                return f"{self.base_message} {self.url} => {cause_msg}"
+                return f'{self.base_message} "{self.url}" => {cause_msg}'
 
-            return f"{self.base_message} {self.url} due to: {self.cause.__class__.__name__}"
+            return f'{self.base_message} "{self.url}" due to: {self.cause.__class__.__name__}'
 
-        return f"{self.base_message} {self.url}"
+        return f'{self.base_message} "{self.url}"'
 
 
 @dataclass

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Literal
 
 import httpx
+from furl import furl
 
 from webtoon_downloader.core import file as fileutil
 from webtoon_downloader.core import webtoon
@@ -60,8 +61,12 @@ class WebtoonDownloader:
     _directory: Path = field(init=False)
 
     def __post_init__(self) -> None:
-        # sanitize url
+        # sanitize and check the url is valid
         self.url = re.sub(r"\\(?=[?=&])", "", self.url)
+        url = furl(self.url)
+
+        if not url.scheme or not url.host:
+            raise WebtoonDownloadError(self.url, cause=ValueError("Invalid URL"))
 
     async def run(self) -> list[DownloadResult]:
         """
