@@ -70,6 +70,12 @@ Install via `pip` or `pipx`
 pip install webtoon_downloader
 ```
 
+A Nix flake is also provided. To run directly from the repo, execute:
+```sh
+nix run github:Zehina/Webtoon-Downloader
+```
+
+
 <!-- USAGE EXAMPLES -->
 
 ## Usage
