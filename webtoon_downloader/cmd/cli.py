@@ -95,7 +95,7 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
 )
 @click.option(
     "--save-as",
-    "-s",
+    "-sa",
     type=click.Choice(["images", "zip", "cbz", "pdf"]),
     default="images",
     show_default=True,
