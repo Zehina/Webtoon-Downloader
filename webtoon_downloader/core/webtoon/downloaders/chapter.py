@@ -79,7 +79,9 @@ class ChapterDownloader:
         await self._report_progress(chapter_info, "Start")
 
         resp = await self.client.get(chapter_info.viewer_url)
-        print('Fetched: "%s" from chapter "%s" => %s', chapter_info.viewer_url, chapter_info.title, resp.status_code)
+        log.debug(
+            'Fetched: "%s" from chapter "%s" => %s', chapter_info.viewer_url, chapter_info.title, resp.status_code
+        )
         extractor = WebtoonViewerPageExtractor(resp.text)
         img_urls = extractor.get_img_urls()
         await self._report_progress(chapter_info, "ChapterInfoFetched", extractor)
