@@ -67,6 +67,11 @@ class WebtoonDownloader:
         self.url = re.sub(r"\\(?=[?=&])", "", self.url)
         url = furl(self.url)
 
+        # if the url has no scheme, attempt to add one
+        if not url.scheme:
+            self.url = f"https://{self.url}"
+            url = furl(self.url)
+
         if not url.scheme or not url.host:
             raise WebtoonDownloadError(self.url, cause=ValueError("Invalid URL"))
 
