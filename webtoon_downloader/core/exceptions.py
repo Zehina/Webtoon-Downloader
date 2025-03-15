@@ -63,6 +63,16 @@ class WebtoonGetError(Exception):
 
 
 @dataclass
+class InvalidURL(Exception):
+    """Exception raised due to an invalid URL"""
+
+    url: str
+
+    def __str__(self) -> str:
+        return f"Invalid URL: {self.url}"
+
+
+@dataclass
 class FetchError(Exception):
     """Exception raised due to a fetch error"""
 

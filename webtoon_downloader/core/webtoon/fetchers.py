@@ -13,6 +13,7 @@ from webtoon_downloader.core.exceptions import (
     ChapterDataEpisodeNumberFetchError,
     ChapterTitleFetchError,
     ChapterURLFetchError,
+    InvalidURL,
     SeriesTitleFetchError,
     WebtoonGetError,
 )
@@ -49,6 +50,9 @@ class WebtoonFetcher:
         viewer_url = viewer_url.replace("\\", "/")
 
         f = furl(viewer_url)
+        if not f.scheme or not f.host:
+            raise InvalidURL(viewer_url)
+
         domain_parts = f.host.split(".")
         domain_parts = [part for part in domain_parts if part not in [WebtoonDomain.MOBILE, WebtoonDomain.STANDARD]]
         domain_parts.insert(0, target_subdomain)
