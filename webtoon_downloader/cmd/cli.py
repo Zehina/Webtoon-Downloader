@@ -40,7 +40,7 @@ class GracefulExit(SystemExit):
     code = 1
 
 
-def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | None:
+def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | None:  # pylint: disable=unused-argument
     if value is not None and value <= 0:
         raise CLIInvalidConcurrentCountError(value)
 
@@ -218,7 +218,10 @@ def cli(
         raise GracefulExit()
 
     def _raise_graceful_exit(*_: Any) -> None:
-        loop.create_task(_shutdown())  # type: ignore[func-returns-value]
+        exit_tasks = set()
+        shutdown_task = loop.create_task(_shutdown())  # type: ignore[func-returns-value]
+        exit_tasks.add(shutdown_task)
+        shutdown_task.add_done_callback(exit_tasks.discard)
 
     with progress:
         main_task = loop.create_task(comic.download_webtoon(opts))
