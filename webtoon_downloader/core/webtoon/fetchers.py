@@ -126,10 +126,10 @@ class WebtoonFetcher:
             chapter_info = ChapterInfo(
                 number=chapter_number,
                 viewer_url=self._get_viewer_url(chapter_detail),
-                title=self._get_chapter_title(chapter_detail),
+                title=self._get_chapter_title(chapter_detail).strip(),
                 data_episode_no=self._get_data_episode_num(chapter_detail),
                 total_chapters=len(chapter_items),
-                series_title=series_title,
+                series_title=series_title.strip(),
             )
             chapter_details.append(chapter_info)
 

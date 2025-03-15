@@ -25,7 +25,7 @@ class DownloadError(Exception):
 
             return f'{self.base_message} "{self.url}" due to: {self.cause.__class__.__name__}'
 
-        return f'{self.base_message} "{self.url}"'
+        return f'{self.base_message}: "{self.url}"'
 
 
 @dataclass

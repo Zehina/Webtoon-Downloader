@@ -68,6 +68,8 @@ class ChapterDownloader:
         try:
             async with self._semaphore:
                 return await self._run(chapter_info, directory, storage)
+        except ChapterDownloadError:
+            raise
         except Exception as exc:
             raise ChapterDownloadError(chapter_info.viewer_url, exc, chapter_info=chapter_info) from exc
 
@@ -84,6 +86,14 @@ class ChapterDownloader:
         )
         extractor = WebtoonViewerPageExtractor(resp.text)
         img_urls = extractor.get_img_urls()
+        if not img_urls:
+            raise ChapterDownloadError(
+                chapter_info.viewer_url,
+                None,
+                f'No images found in chapter "{chapter_info.title}"',
+                chapter_info=chapter_info,
+            )
+
         await self._report_progress(chapter_info, "ChapterInfoFetched", extractor)
 
         chapter_directory = self.file_name_generator.get_chapter_directory(chapter_info)  # pylint: disable=assignment-from-no-return
