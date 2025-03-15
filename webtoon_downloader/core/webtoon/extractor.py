@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 
 from bs4 import BeautifulSoup, Tag
@@ -133,17 +134,22 @@ class WebtoonViewerPageExtractor:
     def get_img_urls(self) -> list[str]:
         """Extracts image URLs from the chapter."""
         if hasattr(self, "_img_urls"):
+            log.debug("Found cached image URLs in extractor")
             return self._img_urls
 
-        _nav = self._soup.find("div", class_="viewer_img _img_viewer_area")
-        if not isinstance(_nav, Tag):
-            return []
+        _nav = self._soup.find("div", class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b"))
 
         if not _nav:
+            log.debug("img container not found")
             raise ElementNotFoundError("_img_viewer_area")
+
+        if not isinstance(_nav, Tag):
+            log.debug("img container is not a tag object but a %s", type(_nav))
+            return []
 
         _tags = _nav.find_all("img")
         if not _tags:
+            log.debug("img tags not found in img container")
             raise ElementNotFoundError("all_img")
 
         self._img_urls = [tag["data-url"] for tag in _tags]
