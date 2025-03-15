@@ -12,12 +12,9 @@ nav:
   - Modules: modules.md
 plugins:
   - search
+  - autorefs
   - mkdocstrings:
-      handlers:
-        python:
-          setup_commands:
-            - import sys
-            - sys.path.append('../')
+
 theme:
   name: material
   feature:

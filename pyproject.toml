@@ -35,12 +35,15 @@ types-beautifulsoup4 = "^4.12.0.7"
 types-pillow = "^10.1.0.2"
 types-requests = "^2.31.0.10"
 types-aiofiles = "^23.2.0.0"
-ruff = "^0.1.9"
+ruff = "^0.11.0"
 
 [tool.poetry.group.docs.dependencies]
-mkdocs = "^1.4.2"
+mkdocs = "^1.6.1"
 mkdocs-material = "^9.2.7"
-mkdocstrings = {extras = ["python"], version = "^0.23.0"}
+mkdocstrings = "^0.29.0"
+mkdocs-autorefs = "^1.4.1"
+mkdocstrings-python = "^1.16.5"
+griffe = "^1.6.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
