@@ -61,6 +61,8 @@ class ImageDownloader:
         """
         try:
             async with self._semaphore:
+                # Attempt to remove Webtoons compression by removing "?type=q90" at the end of URLs
+                url = url.replace("?type=q90", "")
                 return await self._download_image(self.client, url, target, storage)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
