@@ -153,4 +153,8 @@ class WebtoonViewerPageExtractor:
             raise ElementNotFoundError("all_img")
 
         self._img_urls = [tag["data-url"] for tag in _tags]
+
+        # Attempt to remove Webtoons compression by removing "?type=q90" at the end of URLs
+        self._img_urls = [url.replace("?type=q90", "") for url in self._img_urls]
+
         return self._img_urls
