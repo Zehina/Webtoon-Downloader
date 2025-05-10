@@ -107,13 +107,13 @@ Tower_of_God
     │--150_003.jpg
     │...
 `
-- In order to download these images into a different folder, you can use the `--dest` optional argument.
+- In order to download these images into a different folder, you can use the `--out` optional argument.
 
   ```ps
-  $ webtoon-downloader [url] --dest ./path/to/parent/folder/of/downloaded/images
+  $ webtoon-downloader [url] --out ./path/to/parent/folder/of/downloaded/images
   ```
 
-* The downloaded images of the chapters are by default all located in the `[dest]`, however these images can be separated into separate directories by providing the `--separate` argument, where each directory corresponds to a downloaded chapter.
+* The downloaded images of the chapters are by default all located in the `[out]`, however these images can be separated into separate directories by providing the `--separate` argument, where each directory corresponds to a downloaded chapter.
 
   ```ps
   $ webtoon-downloader [url] --separate
