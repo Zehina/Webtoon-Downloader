@@ -3,9 +3,13 @@
   lib,
 }:
 
+let
+  pyproject = fromTOML (builtins.readFile ./pyproject.toml);
+in
+
 python3.pkgs.buildPythonApplication {
   pname = "webtoon_downloader";
-  version = "1.0.1";
+  inherit (pyproject.tool.poetry) version;
 
   pyproject = true;
   src = ./.;
@@ -33,6 +37,7 @@ python3.pkgs.buildPythonApplication {
     "httpx"
     "lxml"
     "pillow"
+    "rich"
   ];
 
   pythonImportsCheck = [ "webtoon_downloader" ];

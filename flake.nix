@@ -1,9 +1,8 @@
 {
-
-  description = "Webtoons Scraper able to download all chapters of any series wanted";
+  description = "Webtoons Scraper able to download all chapters of any series wanted.";
 
   inputs = {
-    nixpkgs.url = "github:nixos/nixpkgs/nixos-24.11";
+    nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
   };
 
   outputs =
