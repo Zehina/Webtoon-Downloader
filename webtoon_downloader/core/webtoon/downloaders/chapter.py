@@ -81,6 +81,13 @@ class ChapterDownloader:
         await self._report_progress(chapter_info, "Start")
 
         resp = await self.client.get(chapter_info.viewer_url)
+        if resp.status_code != 200:
+            raise ChapterDownloadError(
+                chapter_info.viewer_url,
+                message=f"Failed to fetch url: status code [{resp.status_code}]",
+                chapter_info=chapter_info,
+            )
+
         log.debug(
             'Fetched: "%s" from chapter "%s" => %s', chapter_info.viewer_url, chapter_info.title, resp.status_code
         )

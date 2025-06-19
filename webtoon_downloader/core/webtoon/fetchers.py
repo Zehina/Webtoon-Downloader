@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal, Sequence
+from typing import Literal
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -18,9 +18,13 @@ from webtoon_downloader.core.exceptions import (
     WebtoonGetError,
 )
 from webtoon_downloader.core.webtoon import client
+from webtoon_downloader.core.webtoon.api import WebtoonAPI
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 
 log = logging.getLogger(__name__)
+
+
+WebtoonMobileURL = "https://m.webtoons.com"
 
 
 class WebtoonDomain(str, Enum):
@@ -28,6 +32,10 @@ class WebtoonDomain(str, Enum):
 
     MOBILE = "m"
     STANDARD = "www"
+
+
+class TitleNoFetchError(Exception):
+    """Custom exception for when the title number cannot be found."""
 
 
 @dataclass
@@ -59,6 +67,24 @@ class WebtoonFetcher:
         f.host = ".".join(domain_parts)
         return str(f.url)
 
+    def _get_title_no(self, soup: BeautifulSoup) -> int:
+        """
+        Returns the title number by parsing the canonical link tag object
+        """
+        canonical_link_tag = soup.find("link", rel="canonical")
+        if not isinstance(canonical_link_tag, Tag):
+            raise TitleNoFetchError
+
+        if not canonical_link_tag.has_attr("href"):
+            raise TitleNoFetchError("Could not find the canonical link tag in the HTML.")  # noqa: TRY003
+
+        f = furl(str(canonical_link_tag["href"]))
+        title = f.args.get("title_no")
+        if not title:
+            raise TitleNoFetchError
+
+        return int(title)
+
     def _get_viewer_url(self, tag: Tag) -> str:
         """Returns the viewer URL from the scrapped tag object"""
         viewer_url_tag = tag.find("a")
@@ -89,9 +115,14 @@ class WebtoonFetcher:
 
     def _get_series_title(self, soup: BeautifulSoup) -> str:
         """Returns the series title from the scrapped tag object"""
-        series_title_tag = soup.find("p", class_="subj")
+        # Look for the new format used in the provided HTML.
+        series_title_tag = soup.find("strong", class_="subject")
+        # Fallback: If the new format isn't found, look for the older format.
+        if not series_title_tag:
+            series_title_tag = soup.find("p", class_="subj")
+
         if not isinstance(series_title_tag, Tag):
-            raise SeriesTitleFetchError
+            raise SeriesTitleFetchError("Failed to find series title with any known tag.")  # noqa: TRY003
 
         return series_title_tag.text
 
@@ -115,6 +146,7 @@ class WebtoonFetcher:
             If both `start_chapter` and `end_chapter` are None, returns all chapters.
         """
         mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
+        webtoon_api = WebtoonAPI(self.client)
         response = await self.client.get(
             mobile_url, headers={**self.client.headers, "user-agent": client.get_mobile_ua()}
         )
@@ -122,16 +154,19 @@ class WebtoonFetcher:
             raise WebtoonGetError(series_url, response.status_code)
 
         soup = BeautifulSoup(response.text, "html.parser")
-        chapter_items: Sequence[Tag] = soup.findAll("li", class_="_episodeItem")
+        # chapter_items: Sequence[Tag] = soup.findAll("li", class_="_episodeItem")
+        title_id = self._get_title_no(soup)
+        log.debug("Title ID: %s", title_id)
         series_title = self._get_series_title(soup)
+        chapter_items = await webtoon_api.get_episode_data(title_id, page_size=99999)
 
         chapter_details: list[ChapterInfo] = []
         for chapter_number, chapter_detail in enumerate(chapter_items[::-1], start=1):
             chapter_info = ChapterInfo(
                 number=chapter_number,
-                viewer_url=self._get_viewer_url(chapter_detail),
-                title=self._get_chapter_title(chapter_detail).strip(),
-                data_episode_no=self._get_data_episode_num(chapter_detail),
+                viewer_url=f"{WebtoonMobileURL}{chapter_detail.viewerLink}",
+                title=chapter_detail.episodeTitle.strip(),
+                data_episode_no=chapter_detail.episodeNo,
                 total_chapters=len(chapter_items),
                 series_title=series_title.strip(),
             )

@@ -84,7 +84,11 @@ class WebtoonMainPageExtractor:
         if not _tag:
             raise ElementNotFoundError("_btnEpisode")
 
-        viewer_url = str(furl(_tag["href"]).remove(args=["episode_no"]))
+        _href = _tag["href"]
+        if isinstance(_href, list):
+            _href = _href[0]
+
+        viewer_url = str(furl(_href).remove(args=["episode_no"]))
         object.__setattr__(self, "_viewer_url", viewer_url)
         return viewer_url
 
@@ -140,7 +144,6 @@ class WebtoonViewerPageExtractor:
         _nav = self._soup.find("div", class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b"))
 
         if not _nav:
-            log.debug("img container not found")
             raise ElementNotFoundError("_img_viewer_area")
 
         if not isinstance(_nav, Tag):

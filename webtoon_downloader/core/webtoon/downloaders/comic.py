@@ -14,7 +14,7 @@ from furl import furl
 from webtoon_downloader.core import file as fileutil
 from webtoon_downloader.core import webtoon
 from webtoon_downloader.core.downloaders.image import ImageDownloader
-from webtoon_downloader.core.exceptions import WebtoonDownloadError
+from webtoon_downloader.core.exceptions import NoChaptersFoundError, WebtoonDownloadError
 from webtoon_downloader.core.webtoon.downloaders.callbacks import OnWebtoonFetchCallback
 from webtoon_downloader.core.webtoon.downloaders.chapter import ChapterDownloader
 from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
@@ -120,6 +120,9 @@ class WebtoonDownloader:
         """
         fetcher = WebtoonFetcher(client, self.url)
         chapters = await fetcher.get_chapters_details(self.url, self.start_chapter, self.end_chapter)
+        if not chapters:
+            raise NoChaptersFoundError
+
         if self.on_webtoon_fetched:
             await self.on_webtoon_fetched(chapters)
 
