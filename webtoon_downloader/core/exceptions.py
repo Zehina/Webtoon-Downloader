@@ -113,6 +113,17 @@ class ChapterDataEpisodeNumberFetchError(FetchError):
 
 
 @dataclass
+class NoChaptersFoundError(FetchError):
+    """Exception raised when no chapters are found"""
+
+    def __str__(self) -> str:
+        if self.msg:
+            return self.msg
+
+        return "No chapters found"
+
+
+@dataclass
 class SeriesTitleFetchError(FetchError):
     """Exception raised due to a fetch error when retreiving the series title"""
 

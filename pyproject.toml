@@ -22,6 +22,7 @@ aiofiles = "^23.2.1"
 pymupdf = "^1.23.8"
 typing-extensions = "^4.9.0"
 rich-click = "^1.7.2"
+dacite = "^1.9.2"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
