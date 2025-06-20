@@ -1,10 +1,13 @@
 import logging
 from dataclasses import dataclass
+from typing import Literal
 
 import dacite
 import httpx
 
 log = logging.getLogger(__name__)
+
+WebtoonType = Literal["WEBTOON", "CANVAS"]
 
 
 @dataclass
@@ -15,7 +18,7 @@ class EpisodeInfo:
     viewerLink: str
     exposureDateMillis: int
     displayUp: bool
-    hasBgm: bool
+    hasBgm: bool | None  # In Canvas this is not defined
 
 
 @dataclass
@@ -32,9 +35,16 @@ class GetEpisodesResponse:
 class WebtoonAPI:
     client: httpx.AsyncClient
 
-    async def get_episode_data(self, series_id: int, page_size: int = 30, cursor: int = 0) -> list[EpisodeInfo]:
+    async def get_episodes_data(self, series_api_url: str, page_size: int = 30, cursor: int = 0) -> list[EpisodeInfo]:
         """Returns a list of episode data for a given series ID."""
-        url = f"https://m.webtoons.com/api/v1/webtoon/{series_id}/episodes?pageSize={page_size}&cursor={cursor}"
+        # Examples for both webtoon and canvas
+        ## https://m.webtoons.com/api/v1/canvas/877457/episodes?pageSize=30
+        ## https://m.webtoons.com/api/v1/webtoon/95/episodes?pageSize=30
+
+        url = f"{series_api_url}/episodes?pageSize={page_size}"
+        if cursor > 0:
+            url = f"{url}&cursor={cursor}"
+
         resp = dacite.from_dict(data_class=GetEpisodesResponse, data=(await self.client.get(url)).json())
         data = resp.result.episodeList
         log.debug("Received %d episodes", len(data))
@@ -46,6 +56,6 @@ if __name__ == "__main__":
 
     async def main():
         api = WebtoonAPI(httpx.AsyncClient())
-        await api.get_episode_data(95, page_size=99999)
+        await api.get_episodes_data("95", page_size=99999)
 
     asyncio.run(main())
