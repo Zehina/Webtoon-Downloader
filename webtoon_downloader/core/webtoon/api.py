@@ -49,13 +49,3 @@ class WebtoonAPI:
         data = resp.result.episodeList
         log.debug("Received %d episodes", len(data))
         return data
-
-
-if __name__ == "__main__":
-    import asyncio
-
-    async def main():
-        api = WebtoonAPI(httpx.AsyncClient())
-        await api.get_episodes_data("95", page_size=99999)
-
-    asyncio.run(main())

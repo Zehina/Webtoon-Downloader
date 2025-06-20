@@ -10,6 +10,10 @@ assignees: "zehina"
 
 <!-- A clear and concise description of what the bug is. -->
 
+<!-- PLEASE INCLUDE THE FULL COMMAND YOU RUN -->
+
+Command run: `<cmd>`
+
 **To Reproduce**
 
 Steps to reproduce the behavior:
@@ -24,8 +28,8 @@ Steps to reproduce the behavior:
 
 **System [please complete the following information]:**
 
-- OS: e.g. [Ubuntu 18.04]
-- Language Version: [e.g. Python 3.9]
+- OS: e.g. [Ubuntu 24.04]
+- Language Version: [e.g. Python 3.10]
 
 **Additional context**
 
