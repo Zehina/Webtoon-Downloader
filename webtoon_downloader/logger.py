@@ -1,10 +1,12 @@
 import asyncio
+import json
 import logging
 import sys
 from logging import FileHandler
 from typing import Optional, Tuple
 
 import aiofiles
+import dacite
 import httpx
 import rich_click as click
 from rich import traceback
@@ -27,6 +29,7 @@ def setup(
     Returns:
         The configured logger and the rich console object.
     """
+    suppress = [click, httpx, aiofiles, asyncio, json, dacite]
     console = Console()
     if not enable_traceback:
         sys.tracebacklimit = 0
@@ -34,7 +37,7 @@ def setup(
         traceback.install(
             console=console,
             show_locals=False,
-            suppress=[click, httpx, aiofiles, asyncio],
+            suppress=suppress,
         )
 
     log = logging.getLogger()
@@ -42,7 +45,13 @@ def setup(
 
     # Create the console handler
     if enable_console_logging:
-        console_handler = RichHandler(console=console, level=log_level, rich_tracebacks=enable_traceback, markup=True)
+        console_handler = RichHandler(
+            console=console,
+            level=log_level,
+            rich_tracebacks=enable_traceback,
+            markup=True,
+            tracebacks_suppress=suppress,
+        )
         log.addHandler(console_handler)
     else:
         log.addHandler(logging.NullHandler())

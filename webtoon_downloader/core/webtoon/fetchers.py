@@ -126,6 +126,14 @@ class WebtoonFetcher:
 
         return series_title_tag.text
 
+    def _get_webtoon_type(self, series_url: str) -> Literal["webtoon", "canvas"]:
+        if "canvas" in series_url:
+            return "canvas"
+        return "webtoon"
+
+    def _get_series_api_url(self, series_url: str, series_id: int) -> str:
+        return f"https://m.webtoons.com/api/v1/{self._get_webtoon_type(series_url)}/{series_id}"
+
     async def get_chapters_details(
         self, series_url: str, start_chapter: int | None = None, end_chapter: int | None | Literal["latest"] = None
     ) -> list[ChapterInfo]:
@@ -154,14 +162,15 @@ class WebtoonFetcher:
             raise WebtoonGetError(series_url, response.status_code)
 
         soup = BeautifulSoup(response.text, "html.parser")
-        # chapter_items: Sequence[Tag] = soup.findAll("li", class_="_episodeItem")
         title_id = self._get_title_no(soup)
         log.debug("Title ID: %s", title_id)
         series_title = self._get_series_title(soup)
-        chapter_items = await webtoon_api.get_episode_data(title_id, page_size=99999)
+        chapter_items = await webtoon_api.get_episodes_data(
+            (self._get_series_api_url(mobile_url, title_id)), page_size=99999
+        )
 
         chapter_details: list[ChapterInfo] = []
-        for chapter_number, chapter_detail in enumerate(chapter_items[::-1], start=1):
+        for chapter_number, chapter_detail in enumerate(chapter_items, start=1):
             chapter_info = ChapterInfo(
                 number=chapter_number,
                 viewer_url=f"{WebtoonMobileURL}{chapter_detail.viewerLink}",
