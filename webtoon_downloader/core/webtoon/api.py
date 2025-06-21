@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from typing import Literal
 
 import dacite
-import httpx
+
+from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
 
 log = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class GetEpisodesResponse:
 
 @dataclass
 class WebtoonAPI:
-    client: httpx.AsyncClient
+    client: WebtoonHttpClient
 
     async def get_episodes_data(self, series_api_url: str, page_size: int = 30, cursor: int = 0) -> list[EpisodeInfo]:
         """Returns a list of episode data for a given series ID."""

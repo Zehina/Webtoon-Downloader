@@ -5,6 +5,7 @@ from typing import Literal
 
 from typing_extensions import TypeAlias
 
+from webtoon_downloader.core.webtoon.client import RetryStrategy
 from webtoon_downloader.core.webtoon.downloaders.callbacks import ChapterProgressCallback, OnWebtoonFetchCallback
 from webtoon_downloader.core.webtoon.exporter import DataExporterFormat
 from webtoon_downloader.transformers.image import ImageFormat
@@ -40,6 +41,7 @@ class WebtoonDownloadOptions:
         on_webtoon_fetched        : function invoked after fetching Webtoon information.
         concurrent_chapters       : The number of chapters to download concurrently.
         concurrent_pages          : The number of images to download concurrently.
+        retry_strategy            : The strategy to use for retrying failed downloads.
         proxy:                    : proxy address to use for making requests.
     """
 
@@ -63,4 +65,5 @@ class WebtoonDownloadOptions:
     concurrent_chapters: int = DEFAULT_CONCURENT_CHAPTER_DOWNLOADS
     concurrent_pages: int = DEFAULT_CONCURENT_IMAGE_DOWNLOADS
 
+    retry_strategy: RetryStrategy | None = None
     proxy: str | None = None

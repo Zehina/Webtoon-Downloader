@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Literal
 
-import httpx
 from bs4 import BeautifulSoup, Tag
 from furl import furl
 
@@ -17,14 +16,11 @@ from webtoon_downloader.core.exceptions import (
     SeriesTitleFetchError,
     WebtoonGetError,
 )
-from webtoon_downloader.core.webtoon import client
 from webtoon_downloader.core.webtoon.api import WebtoonAPI
+from webtoon_downloader.core.webtoon.client import WebtoonHttpClient, WebtoonURL
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 
 log = logging.getLogger(__name__)
-
-
-WebtoonMobileURL = "https://m.webtoons.com"
 
 
 class WebtoonDomain(str, Enum):
@@ -50,7 +46,7 @@ class WebtoonFetcher:
         series_url: The URL of the Webtoon series from which to fetch details.
     """
 
-    client: httpx.AsyncClient
+    client: WebtoonHttpClient
     series_url: str
 
     def _convert_url_domain(self, viewer_url: str, target_subdomain: WebtoonDomain) -> str:
@@ -155,9 +151,7 @@ class WebtoonFetcher:
         """
         mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
         webtoon_api = WebtoonAPI(self.client)
-        response = await self.client.get(
-            mobile_url, headers={**self.client.headers, "user-agent": client.get_mobile_ua()}
-        )
+        response = await self.client.get(mobile_url)
         if response.status_code != 200:
             raise WebtoonGetError(series_url, response.status_code)
 
@@ -173,7 +167,7 @@ class WebtoonFetcher:
         for chapter_number, chapter_detail in enumerate(chapter_items, start=1):
             chapter_info = ChapterInfo(
                 number=chapter_number,
-                viewer_url=f"{WebtoonMobileURL}{chapter_detail.viewerLink}",
+                viewer_url=f"{WebtoonURL}{chapter_detail.viewerLink}",
                 title=chapter_detail.episodeTitle.strip(),
                 data_episode_no=chapter_detail.episodeNo,
                 total_chapters=len(chapter_items),
