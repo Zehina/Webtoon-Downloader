@@ -8,13 +8,13 @@ from typing import Any
 
 import rich_click as click
 
+import webtoon_downloader.cmd.exceptions
 from webtoon_downloader import logger
 from webtoon_downloader.cmd.exceptions import (
     CLIInvalidConcurrentCountError,
     CLIInvalidStartAndEndRangeError,
     CLILatestWithStartOrEndError,
     CLISeparateOptionWithNonImageSaveAsError,
-    handle_deprecated_options,
 )
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress
 from webtoon_downloader.core.exceptions import WebtoonDownloadError
@@ -108,7 +108,7 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
 )
 @click.option(
     "--dest",
-    callback=handle_deprecated_options,
+    callback=webtoon_downloader.cmd.exceptions.handle_deprecated_options,
     type=str,
     expose_value=False,
     hidden=True,
@@ -116,7 +116,7 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
 )
 @click.option(
     "--export-texts",
-    callback=handle_deprecated_options,
+    callback=webtoon_downloader.cmd.exceptions.handle_deprecated_options,
     is_flag=True,
     expose_value=False,
     hidden=True,
@@ -142,7 +142,7 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     help="proxy address to use for making requests. e.g. http://127.0.0.1:7890",
 )
 @click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
-def cli(
+def cli(  # noqa: C901
     ctx: click.Context,
     url: str,
     start: int,
@@ -232,6 +232,11 @@ def cli(
                 loop.run_until_complete(main_task)
             except WebtoonDownloadError as exc:
                 console.print(f"[red][bold]Download error:[/bold] {exc}[/]")
+                if webtoon_downloader.cmd.exceptions.is_root_cause_rate_limit_error(exc.cause):
+                    console.print(
+                        "[red][bold]Oh no! We got rate limited 😔 ! Please consider using a proxy or lower --concurrent-pages/-concurrent-chapters values[/bold][/]"
+                    )
+
                 log.exception("Download error")
 
 

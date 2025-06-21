@@ -132,3 +132,14 @@ class SeriesTitleFetchError(FetchError):
             return self.msg
 
         return "Failed to fetch series title"
+
+
+@dataclass
+class RateLimitedError(FetchError):
+    """Exception raised when we suspect the server is rate limiting us"""
+
+    def __str__(self) -> str:
+        if self.msg:
+            return self.msg
+
+        return "Rate limited"
