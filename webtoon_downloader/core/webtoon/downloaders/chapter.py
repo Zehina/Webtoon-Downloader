@@ -9,7 +9,7 @@ from pathlib import Path
 import httpx
 
 from webtoon_downloader.core.downloaders.image import ImageDownloader, ImageDownloadResult
-from webtoon_downloader.core.exceptions import ChapterDownloadError
+from webtoon_downloader.core.exceptions import ChapterDownloadError, RateLimitedError
 from webtoon_downloader.core.webtoon.downloaders.callbacks import ChapterProgressCallback, ChapterProgressType
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
@@ -82,10 +82,16 @@ class ChapterDownloader:
 
         resp = await self.client.get(chapter_info.viewer_url)
         if resp.status_code != 200:
+            cause = None
+            # Too Many Requests
+            if resp.status_code == 429:
+                cause = RateLimitedError("Rate limitied due to too many requests")
+
             raise ChapterDownloadError(
                 chapter_info.viewer_url,
-                message=f"Failed to fetch url: status code [{resp.status_code}]",
+                message=f"Failed to fetch url {chapter_info.viewer_url}: status code [{resp.status_code}]",
                 chapter_info=chapter_info,
+                cause=cause,
             )
 
         log.debug(

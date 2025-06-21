@@ -45,10 +45,10 @@ class AioWriter(Protocol):
 
 
 __all__ = [
+    "AioFileBufferedZipWriter",
     "AioFolderWriter",
     "AioPdfWriter",
-    "AioZipWriter",
-    "AioFileBufferedZipWriter",
     "AioWriter",
+    "AioZipWriter",
     "StreamWriteError",
 ]

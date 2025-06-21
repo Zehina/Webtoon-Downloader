@@ -4,6 +4,8 @@ from typing import Any
 
 import rich_click as click
 
+from webtoon_downloader.core.exceptions import DownloadError, RateLimitedError
+
 
 class CLIInvalidStartAndEndRangeError(click.UsageError):
     """
@@ -74,3 +76,14 @@ def handle_deprecated_options(_: click.Context, param: click.Parameter, value: A
         raise CLIDeprecatedOptionError(deprecated_option="--export-texts", use_instead_option="--export-metadata")
     elif param.name == "dest" and value is not None:
         raise CLIDeprecatedOptionError(deprecated_option="--dest", use_instead_option="--out")
+
+
+def is_root_cause_rate_limit_error(exc: Exception | None) -> bool:
+    if not isinstance(exc, DownloadError) and not isinstance(exc, RateLimitedError):
+        return False
+
+    if isinstance(exc, RateLimitedError):
+        return True
+
+    # Traverse the cause chain
+    return is_root_cause_rate_limit_error(exc.cause)
