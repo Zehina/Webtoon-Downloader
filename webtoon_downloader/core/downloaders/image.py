@@ -7,7 +7,8 @@ from typing import Awaitable, Callable
 
 import httpx
 
-from webtoon_downloader.core.exceptions import ImageDownloadError
+from webtoon_downloader.core.exceptions import ImageDownloadError, RateLimitedError
+from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
 from webtoon_downloader.storage import AioWriter
 from webtoon_downloader.transformers.base import AioImageTransformer
 
@@ -35,7 +36,7 @@ class ImageDownloadResult:
 
 @dataclass
 class ImageDownloader:
-    client: httpx.AsyncClient
+    client: WebtoonHttpClient
     concurent_downloads_limit: int
     transformers: list[AioImageTransformer] = field(default_factory=list)
     progress_callback: ImageProgressCallback | None = None
@@ -61,21 +62,27 @@ class ImageDownloader:
         """
         try:
             async with self._semaphore:
-                return await self._download_image(self.client, url, target, storage)
+                return await self._download_image(url, target, storage)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
 
-    async def _download_image(
-        self, client: httpx.AsyncClient, url: str, target: str, storage: AioWriter
-    ) -> ImageDownloadResult:
+    async def _download_image(self, url: str, target: str, storage: AioWriter) -> ImageDownloadResult:
         """
         Downloads and processes the byte image stream from a given URL.
 
         This also applies transformations to the stream, and saves it to the storage.
 
         """
-        async with client.stream("GET", url) as response:
-            response.raise_for_status()
+        async with self.client.stream("GET", url) as response:
+            try:
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                if response.status_code == 429:
+                    raise ImageDownloadError(
+                        url=url, cause=RateLimitedError(f"Rate limitied while downloading image from {url}")
+                    ) from exc
+
+            size = 0
             response_stream = response.aiter_bytes()
             for transformer in self.transformers:
                 response_stream, target = await transformer.transform(response_stream, target)

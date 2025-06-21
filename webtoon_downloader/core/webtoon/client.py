@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+import logging
 import random
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
+from typing import AsyncGenerator, Literal
 
 import httpx
+from httpx_retries import Retry, RetryTransport
+
+from webtoon_downloader.core.exceptions import ImageDownloadError, RateLimitedError
+
+log = logging.getLogger(__name__)
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -29,54 +38,94 @@ MOBILE_USER_AGENTS = [
 List of random user agents of mobiles
 """
 
+WebtoonURL = "https://www.webtoons.com"
+WebtoonMobileURL = "https://m.webtoons.com"
 
-def get_mobile_ua() -> str:
-    """Returns a randomly chosen user agent for mobile devices"""
-    return random.choice(MOBILE_USER_AGENTS)
+RetryStrategy = Literal["exponential", "linear", "fixed"]
 
 
-def _generate_headers() -> dict[str, str]:
+@dataclass
+class WebtoonHttpClient:
     """
-    Generates HTTP headers for the webtoon client, including a randomly chosen user agent.
-    """
-    return {
-        "accept-language": "en-US,en;q=0.9",
-        "dnt": "1",
-        "user-agent": random.choice(USER_AGENTS),
-    }
-
-
-def new(proxy: str | None = None) -> httpx.AsyncClient:
-    """
-    Creates and returns an asynchronous HTTP client configured for scrapping webtoon website.
+    An asynchronous HTTP client configured for scrapping webtoon website.
 
     The client uses HTTP/2, custom headers with a randomly selected user agent,
     and is configured with high limits for maximum connections and keep-alive connections.
     """
-    limits = httpx.Limits(max_connections=200, max_keepalive_connections=200)
-    return httpx.AsyncClient(
-        limits=limits,
-        http2=True,
-        headers=_generate_headers(),
-        follow_redirects=True,
-        proxy=proxy,
-    )
 
+    proxy: str | None = None
+    retry_strategy: RetryStrategy | None = None
 
-def new_image_client(proxy: str | None = None) -> httpx.AsyncClient:
-    """
-    Creates and returns an asynchronous HTTP client configured for downloading webtoon images.
+    _client: httpx.AsyncClient = field(init=False)
 
-    The client uses HTTP/2, custom headers including a referer and a randomly selected user agent,
-    and is configured with high limits for maximum connections and keep-alive connections.
-    """
-    limits = httpx.Limits(max_connections=200, max_keepalive_connections=200)
-    return httpx.AsyncClient(
-        limits=limits,
-        http2=True,
-        headers={
-            "referer": "https://www.webtoons.com/",
-            **_generate_headers(),
-        },
-        proxy=proxy,
-    )
+    def __post_init__(self) -> None:
+        self._client = httpx.AsyncClient(
+            limits=httpx.Limits(max_connections=200, max_keepalive_connections=200),
+            http2=True,
+            headers=self._generate_headers(),
+            follow_redirects=True,
+            proxy=self.proxy,
+            transport=self._build_transport(),
+        )
+
+    def _build_transport(self) -> httpx.AsyncBaseTransport:
+        base_transport = httpx.AsyncHTTPTransport(http2=True)
+        if self.retry_strategy is None:
+            log.warning("No retry strategy provided; using default transport without retry")
+            return base_transport
+
+        # retry_on_exceptions = (*httpx_retries.Retry.RETRYABLE_EXCEPTIONS, h2.exceptions.InvalidBodyLengthError)
+        max_retries = 20
+        retry = {
+            "exponential": Retry(total=max_retries, backoff_factor=0.5, respect_retry_after_header=True),
+            "linear": Retry(total=max_retries, backoff_factor=0, backoff_jitter=1, respect_retry_after_header=True),
+            "fixed": Retry(total=max_retries, backoff_factor=0, backoff_jitter=0, respect_retry_after_header=True),
+        }.get(self.retry_strategy)
+
+        return RetryTransport(retry=retry, transport=base_transport)
+
+    async def __aenter__(self) -> WebtoonHttpClient:
+        await self._client.__aenter__()
+        return self
+
+    async def __aexit__(self, *_: tuple) -> None:
+        await self._client.__aexit__()
+
+    async def get(self, url: str) -> httpx.Response:
+        if WebtoonMobileURL in url.lower():
+            return await self._client.get(url, headers={**self._client.headers, "user-agent": self._get_mobile_ua()})
+        return await self._client.get(url)
+
+    @asynccontextmanager
+    async def stream(self, method: str, url: str) -> AsyncGenerator[httpx.Response]:
+        async with self._client.stream(
+            method,
+            url,
+            headers={
+                "referer": WebtoonURL,
+                **self._generate_headers(),
+            },
+        ) as response:
+            try:
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                if response.status_code == 429:
+                    raise ImageDownloadError(
+                        url=url, cause=RateLimitedError(f"Rate limitied while downloading image from {url}")
+                    ) from exc
+
+            yield response
+
+    def _get_mobile_ua(self) -> str:
+        """Returns a randomly chosen user agent for mobile devices"""
+        return random.choice(MOBILE_USER_AGENTS)
+
+    def _generate_headers(self) -> dict[str, str]:
+        """
+        Generates HTTP headers for the webtoon client, including a randomly chosen user agent.
+        """
+        return {
+            "accept-language": "en-US,en;q=0.9",
+            "dnt": "1",
+            "user-agent": random.choice(USER_AGENTS),
+        }

@@ -9,6 +9,7 @@ from typing import Any
 import rich_click as click
 
 import webtoon_downloader.cmd.exceptions
+import webtoon_downloader.logger
 from webtoon_downloader import logger
 from webtoon_downloader.cmd.exceptions import (
     CLIInvalidConcurrentCountError,
@@ -18,6 +19,7 @@ from webtoon_downloader.cmd.exceptions import (
 )
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress
 from webtoon_downloader.core.exceptions import WebtoonDownloadError
+from webtoon_downloader.core.webtoon.client import RetryStrategy
 from webtoon_downloader.core.webtoon.downloaders import comic
 from webtoon_downloader.core.webtoon.downloaders.options import (
     DEFAULT_CONCURENT_CHAPTER_DOWNLOADS,
@@ -141,6 +143,13 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     type=str,
     help="proxy address to use for making requests. e.g. http://127.0.0.1:7890",
 )
+@click.option(
+    "--retry-strategy",
+    type=click.Choice(["exponential", "linear", "fixed"]),
+    default="exponential",
+    show_default=True,
+    help="Retry strategy for failed requests",
+)
 @click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
 def cli(  # noqa: C901
     ctx: click.Context,
@@ -157,6 +166,7 @@ def cli(  # noqa: C901
     concurrent_chapters: int,
     concurrent_pages: int,
     proxy: str,
+    retry_strategy: RetryStrategy | None,
     debug: bool,
 ) -> None:
     log, console = logger.setup(
@@ -203,6 +213,7 @@ def cli(  # noqa: C901
         on_webtoon_fetched=progress_manager.on_webtoon_fetched,
         concurrent_chapters=concurrent_chapters,
         concurrent_pages=concurrent_pages,
+        retry_strategy=retry_strategy,
         proxy=proxy,
     )
 
@@ -227,17 +238,20 @@ def cli(  # noqa: C901
         main_task = loop.create_task(comic.download_webtoon(opts))
         signal.signal(signal.SIGINT, _raise_graceful_exit)
         signal.signal(signal.SIGTERM, _raise_graceful_exit)
-        with contextlib.suppress(GracefulExit):
+        with contextlib.suppress(GracefulExit, asyncio.CancelledError):
             try:
                 loop.run_until_complete(main_task)
             except WebtoonDownloadError as exc:
                 console.print(f"[red][bold]Download error:[/bold] {exc}[/]")
                 if webtoon_downloader.cmd.exceptions.is_root_cause_rate_limit_error(exc.cause):
                     console.print(
-                        "[red][bold]Oh no! We got rate limited 😔 ! Please consider using a proxy or lower --concurrent-pages/-concurrent-chapters values[/bold][/]"
+                        "[red][bold]Oh no! We got rate limited 😔 ! Please consider using a proxy or use lower --concurrent-pages/-concurrent-chapters values[/bold][/]"
                     )
 
                 log.exception("Download error")
+            finally:
+                log.info("Shutting down logger")
+                webtoon_downloader.logger.shutdown()
 
 
 def run() -> None:

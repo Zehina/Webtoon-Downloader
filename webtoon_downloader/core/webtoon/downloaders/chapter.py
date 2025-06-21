@@ -10,6 +10,7 @@ import httpx
 
 from webtoon_downloader.core.downloaders.image import ImageDownloader, ImageDownloadResult
 from webtoon_downloader.core.exceptions import ChapterDownloadError, RateLimitedError
+from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
 from webtoon_downloader.core.webtoon.downloaders.callbacks import ChapterProgressCallback, ChapterProgressType
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
@@ -35,7 +36,7 @@ class ChapterDownloader:
         progress_callback           : Optional callback for reporting chapter download progress.
     """
 
-    client: httpx.AsyncClient
+    client: WebtoonHttpClient
     image_downloader: ImageDownloader
     file_name_generator: FileNameGenerator
     concurrent_downloads_limit: int
@@ -81,18 +82,18 @@ class ChapterDownloader:
         await self._report_progress(chapter_info, "Start")
 
         resp = await self.client.get(chapter_info.viewer_url)
-        if resp.status_code != 200:
+        try:
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
             cause = None
-            # Too Many Requests
             if resp.status_code == 429:
-                cause = RateLimitedError("Rate limitied due to too many requests")
-
+                cause = RateLimitedError(f"Rate limitied while fetching chapter info from {chapter_info.viewer_url}")
             raise ChapterDownloadError(
                 chapter_info.viewer_url,
                 message=f"Failed to fetch url {chapter_info.viewer_url}: status code [{resp.status_code}]",
                 chapter_info=chapter_info,
                 cause=cause,
-            )
+            ) from exc
 
         log.debug(
             'Fetched: "%s" from chapter "%s" => %s', chapter_info.viewer_url, chapter_info.title, resp.status_code
@@ -140,7 +141,7 @@ class ChapterDownloader:
         async def _task() -> ImageDownloadResult:
             log.debug('Downloading: "%s" from "%s" from chapter "%s"', name, url, chapter_info.viewer_url)
             res = await self.image_downloader.run(url, name, storage)
-            log.debug('Finished downloading: "%s" from "%s" from chapter "%s"', name, url, chapter_info.viewer_url)
+            log.debug('Finished downloading: "%s" from "%s" from chapter URL: "%s"', name, url, chapter_info.viewer_url)
             await self._report_progress(chapter_info, "PageCompleted")
             return res
 

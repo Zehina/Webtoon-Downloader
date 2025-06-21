@@ -8,13 +8,12 @@ from os import PathLike
 from pathlib import Path
 from typing import Literal
 
-import httpx
 from furl import furl
 
 from webtoon_downloader.core import file as fileutil
-from webtoon_downloader.core import webtoon
 from webtoon_downloader.core.downloaders.image import ImageDownloader
 from webtoon_downloader.core.exceptions import NoChaptersFoundError, WebtoonDownloadError
+from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
 from webtoon_downloader.core.webtoon.downloaders.callbacks import OnWebtoonFetchCallback
 from webtoon_downloader.core.webtoon.downloaders.chapter import ChapterDownloader
 from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
@@ -50,6 +49,7 @@ class WebtoonDownloader:
     """
 
     url: str
+    client: WebtoonHttpClient
     chapter_downloader: ChapterDownloader
     storage_type: StorageType
 
@@ -84,41 +84,37 @@ class WebtoonDownloader:
         Returns:
             A list containing download results for each chapter.
         """
-        async with webtoon.client.new(self.proxy) as client:
-            chapter_list = await self._get_chapters(client)
-            resp = await client.get(self.url)
-            extractor = WebtoonMainPageExtractor(resp.text)
+        chapter_list = await self._get_chapters()
+        resp = await self.client.get(self.url)
+        extractor = WebtoonMainPageExtractor(resp.text)
 
-            if self.directory:
-                self._directory = Path(self.directory)
-            else:
-                self._directory = Path(fileutil.slugify_name(extractor.get_series_title()))
+        if self.directory:
+            self._directory = Path(self.directory)
+        else:
+            self._directory = Path(fileutil.slugify_name(extractor.get_series_title()))
 
-            await self._export_data(extractor)
+        await self._export_data(extractor)
 
-            tasks = []
-            for chapter_info in chapter_list:
-                task = self._create_task(chapter_info)
-                tasks.append(task)
+        tasks = []
+        for chapter_info in chapter_list:
+            task = self._create_task(chapter_info)
+            tasks.append(task)
 
-            results = await asyncio.gather(*tasks, return_exceptions=False)
+        results = await asyncio.gather(*tasks, return_exceptions=False)
 
         if self.exporter:
             await self.exporter.write_data(self._directory)
 
         return results
 
-    async def _get_chapters(self, client: httpx.AsyncClient) -> list[ChapterInfo]:
+    async def _get_chapters(self) -> list[ChapterInfo]:
         """
         Fetches chapter information for the specified Webtoon series.
-
-        Args:
-            client: The HTTP client used for making web requests.
 
         Returns:
             A list of `ChapterInfo` objects containing information about each chapter.
         """
-        fetcher = WebtoonFetcher(client, self.url)
+        fetcher = WebtoonFetcher(self.client, self.url)
         chapters = await fetcher.get_chapters_details(self.url, self.start_chapter, self.end_chapter)
         if not chapters:
             raise NoChaptersFoundError
@@ -191,15 +187,16 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         if opts.separate
         else NonSeparateFileNameGenerator()
     )
+    webtoon_client = WebtoonHttpClient(proxy=opts.proxy, retry_strategy=opts.retry_strategy)
     image_downloader = ImageDownloader(
-        client=webtoon.client.new_image_client(opts.proxy),
+        client=webtoon_client,
         transformers=[AioImageFormatTransformer(opts.image_format)],
         concurent_downloads_limit=opts.concurrent_pages,
     )
 
     exporter = DataExporter(opts.exporter_format) if opts.export_metadata else None
     chapter_downloader = ChapterDownloader(
-        client=webtoon.client.new(opts.proxy),
+        client=webtoon_client,
         exporter=exporter,
         progress_callback=opts.chapter_progress_callback,
         image_downloader=image_downloader,
@@ -215,6 +212,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
 
     downloader = WebtoonDownloader(
         url=opts.url,
+        client=webtoon_client,
         directory=opts.destination,
         start_chapter=start,
         end_chapter=end,
