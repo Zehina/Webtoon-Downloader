@@ -77,7 +77,7 @@ class WebtoonHttpClient:
         # retry_on_exceptions = (*httpx_retries.Retry.RETRYABLE_EXCEPTIONS, h2.exceptions.InvalidBodyLengthError)
         max_retries = 20
         retry = {
-            "exponential": Retry(total=max_retries, backoff_factor=0.5, respect_retry_after_header=True),
+            "exponential": Retry(total=max_retries, backoff_factor=0.25, respect_retry_after_header=True),
             "linear": Retry(total=max_retries, backoff_factor=0, backoff_jitter=1, respect_retry_after_header=True),
             "fixed": Retry(total=max_retries, backoff_factor=0, backoff_jitter=0, respect_retry_after_header=True),
         }.get(self.retry_strategy)

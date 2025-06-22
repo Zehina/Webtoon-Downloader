@@ -48,6 +48,10 @@
 
 - [https://www.webtoons.com/](https://www.webtoons.com/)
 
+## Disclaimer
+
+This tool is intended for personal use and educational purposes only. By using it, you agree that you are solely responsible for how you use the software. I am not liable for any misuse, abuse, or violation of terms of service of the websites involved.
+
 ## Getting Started
 
 To get a local copy up and running follow these simple steps.
