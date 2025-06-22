@@ -18,7 +18,7 @@ class AioWriter(Protocol):
     entering and exiting an asynchronous context.
     """
 
-    async def write(self, stream: AsyncIterator[bytes], item_name: str) -> int:
+    async def write(self, stream: AsyncIterator[bytes], item_name: str) -> int:  # pyright: ignore[reportReturnType]
         """
         Asynchronously writes a stream of bytes to a specified item.
 
@@ -29,22 +29,19 @@ class AioWriter(Protocol):
         Returns:
             The number of bytes written.
         """
-        ...
 
-    async def __aenter__(self) -> AioWriter:
+    async def __aenter__(self) -> AioWriter:  # pyright: ignore[reportReturnType]
         """
         Asynchronous context manager entry.
 
         Returns:
             An instance of the class implementing the AioWriter protocol.
         """
-        ...
 
     async def __aexit__(self, *_: tuple) -> None:
         """
         Asynchronous context manager exit, for cleaning up resources.
         """
-        ...
 
 
 __all__ = [

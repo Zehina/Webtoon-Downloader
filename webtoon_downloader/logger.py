@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import asyncio
+import fnmatch
 import json
 import logging
+import re
 import sys
+from dataclasses import dataclass
 from logging import FileHandler, Formatter, NullHandler
 from logging.handlers import QueueHandler, QueueListener
 from queue import Queue
-from typing import Optional, Tuple
+from typing import Mapping, Pattern, Sequence
 
 import aiofiles
 import dacite
@@ -18,7 +23,7 @@ from rich.logging import RichHandler
 
 class AsyncLogger:
     _queue: Queue = Queue(-1)
-    _listener: Optional[QueueListener] = None
+    _listener: QueueListener | None = None
 
     @classmethod
     def setup(cls, handlers: list[logging.Handler]) -> logging.Handler:
@@ -35,16 +40,75 @@ class AsyncLogger:
             cls._listener = None
 
 
+@dataclass(slots=True, frozen=True)
+class RewriteRule:
+    """
+    A single rewrite rule.
+    """
+
+    pattern: str | Pattern[str]
+    """
+    Glob/regex pattern that is matched against `LogRecord.name`.
+    • If it contains *only* ASCII glob wild-cards (`*`, `?`, `[abc]`) we
+        treat it as a glob (fast path via `fnmatch`).
+    • Otherwise it is compiled as a full regex.
+    """
+    mapping: Mapping[int, int]
+    """
+    Dict that maps an *original* `levelno` → *new* `levelno`.
+    Example:  {logging.INFO: logging.DEBUG}
+    """
+
+    def matches(self, logger_name: str) -> bool:
+        if isinstance(self.pattern, re.Pattern):
+            return bool(self.pattern.match(logger_name))
+        return fnmatch.fnmatch(logger_name, self.pattern)
+
+
+class LevelRewriteFilter(logging.Filter):
+    """
+    A `logging.Filter` that mutates `LogRecord`s in-place according to rules.
+
+    >>> filter = LevelRewriteFilter.from_mapping({
+    ...     "httpx*":      {logging.INFO: logging.DEBUG},
+    ... })
+    >>> handler.addFilter(filter)
+    """
+
+    def __init__(self, rules: Sequence[RewriteRule] | None = None) -> None:
+        super().__init__()
+        self.rules: list[RewriteRule] = list(rules) if rules else []
+
+    @classmethod
+    def from_mapping(
+        cls,
+        mapping: Mapping[str, Mapping[int, int]],
+    ) -> LevelRewriteFilter:
+        """Build from ``{pattern: {old_level: new_level}}`` mapping."""
+        return cls([RewriteRule(pat, lvl_map) for pat, lvl_map in mapping.items()])
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        for rule in self.rules:
+            if rule.matches(record.name):
+                if new := rule.mapping.get(record.levelno):
+                    # mutate the record in-place
+                    record.levelno = new
+                    record.levelname = logging.getLevelName(new)
+                # we stop after first match; delete `break` to allow fall-through
+                break
+        return True  # never veto records – we only mutate
+
+
 def shutdown() -> None:
     AsyncLogger.shutdown()
 
 
 def setup(
     log_level: int = logging.DEBUG,
-    log_filename: Optional[str] = None,
+    log_filename: str | None = None,
     enable_console_logging: bool = False,
     enable_traceback: bool = False,
-) -> Tuple[logging.Logger, Console]:
+) -> tuple[logging.Logger, Console]:
     """
     Sets up the logging system with non-blocking handlers and a rich console.
 
@@ -75,6 +139,7 @@ def setup(
             rich_tracebacks=enable_traceback,
             markup=True,
             tracebacks_suppress=suppress,
+            log_time_format="[%H:%M:%S]",
         )
         handlers.append(console_handler)
 
@@ -89,6 +154,12 @@ def setup(
         log.addHandler(NullHandler())
     else:
         queue_handler = AsyncLogger.setup(handlers)
+        rewrite_filter = LevelRewriteFilter.from_mapping(
+            {
+                "httpx*": {logging.INFO: logging.DEBUG},
+            }
+        )
+        queue_handler.addFilter(rewrite_filter)
         log.addHandler(queue_handler)
 
     # Optional: reduce noise from common libraries
@@ -98,5 +169,11 @@ def setup(
     logging.getLogger("click").setLevel(logging.WARNING)
     logging.getLogger("asyncio").setLevel(logging.INFO)
     logging.getLogger("aiofiles").setLevel(logging.INFO)
+
+    if log_level < logging.INFO:
+        log.warning("Logging level is %s", logging.getLevelName(log_level))
+
+    if log_filename:
+        log.info("Logging to %s", log_filename)
 
     return log, console

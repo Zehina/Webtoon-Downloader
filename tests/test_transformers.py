@@ -9,8 +9,6 @@ from webtoon_downloader.transformers.image import (
     _bytesio_to_async_gen,
 )
 
-# TODO: MAKE THE ISSUE COME BACK IN ORDER TO TEST BETTER ERROR HANDLING IF FAILURE
-
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(

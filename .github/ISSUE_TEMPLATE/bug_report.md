@@ -14,6 +14,10 @@ assignees: "zehina"
 
 Command run: `<cmd>`
 
+<!-- If your error is reproducible, re-run it with the --debug flag, which will generate a log file "webtoon_downloader.log" -->
+
+Log file: `<log_file>`
+
 **To Reproduce**
 
 Steps to reproduce the behavior:

@@ -10,7 +10,6 @@ import rich_click as click
 
 import webtoon_downloader.cmd.exceptions
 import webtoon_downloader.logger
-from webtoon_downloader import logger
 from webtoon_downloader.cmd.exceptions import (
     CLIInvalidConcurrentCountError,
     CLIInvalidStartAndEndRangeError,
@@ -169,7 +168,7 @@ def cli(  # noqa: C901
     retry_strategy: RetryStrategy | None,
     debug: bool,
 ) -> None:
-    log, console = logger.setup(
+    log, console = webtoon_downloader.logger.setup(
         log_filename="webtoon_downloader.log" if debug else None,
         enable_traceback=debug,
         enable_console_logging=debug,
@@ -219,18 +218,26 @@ def cli(  # noqa: C901
 
     loop = asyncio.get_event_loop()
 
-    def _shutdown() -> None:
-        tasks = asyncio.all_tasks(loop=loop)
+    async def _shutdown() -> None:
+        """Cancel remaining tasks and stop the loop *quietly*."""
         if progress:
-            progress.console.print("[bold red]Stopping Download[/]...")
-            progress.console.print("[red]Download Stopped[/]!")
+            progress.console.print("[bold red]Stopping Download...[/]")
+            progress.console.print("[red]Download Stopped![/]")
+
+        # ➊ cancel every other task that isn't the main task
+        current = asyncio.current_task()
+        tasks = {t for t in asyncio.all_tasks(loop) if t is not current}
         for t in tasks:
             t.cancel()
-        raise GracefulExit()
+
+        await asyncio.gather(*tasks, return_exceptions=True)
+
+        loop.stop()
+        raise GracefulExit
 
     def _raise_graceful_exit(*_: Any) -> None:
         exit_tasks = set()
-        shutdown_task = loop.create_task(_shutdown())  # type: ignore[func-returns-value]
+        shutdown_task = loop.create_task(_shutdown())
         exit_tasks.add(shutdown_task)
         shutdown_task.add_done_callback(exit_tasks.discard)
 
@@ -238,6 +245,7 @@ def cli(  # noqa: C901
         main_task = loop.create_task(comic.download_webtoon(opts))
         signal.signal(signal.SIGINT, _raise_graceful_exit)
         signal.signal(signal.SIGTERM, _raise_graceful_exit)
+        progress.log("Press [bold]Ctrl+C[/] to stop the download early...")
         with contextlib.suppress(GracefulExit, asyncio.CancelledError):
             try:
                 loop.run_until_complete(main_task)

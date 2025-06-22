@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from io import BytesIO
 from os import PathLike
 from pathlib import Path
-from typing import AsyncIterator, NamedTuple
+from typing import IO, AsyncIterator, NamedTuple
 
 import fitz
 from PIL import Image
@@ -50,7 +50,7 @@ class AioPdfWriter:
         container: The BytesIO or PathLike object where the PDF will be written.
     """
 
-    container: io.BytesIO | PathLike[str]
+    container: io.BytesIO | IO[bytes] | PathLike[str]
 
     _doc: fitz.Document = field(init=False)
     _pages_data: list[PageData] = field(init=False)
@@ -121,7 +121,7 @@ class AioPdfWriter:
         Args:
             page_data: The data of the page to be added.
         """
-        page = self._doc.new_page(-1, width=page_data.dimension.width, height=page_data.dimension.height)
+        page = self._doc.new_page(-1, width=page_data.dimension.width, height=page_data.dimension.height)  # pyright: ignore[reportAttributeAccessIssue]
 
         page.insert_image(
             fitz.Rect(0, 0, page_data.dimension.width, page_data.dimension.height),

@@ -71,7 +71,8 @@ async def test_pdf_writer() -> None:
             assert len(doc) == len(test_images)  # Check number of pages
 
             for page_num, img in enumerate(test_images):
-                pix = doc.load_page(page_num).get_pixmap()
+                page = doc.load_page(page_num)
+                pix = page.get_pixmap()  # pyright: ignore[reportAttributeAccessIssue]
                 assert pix.width == img.width and pix.height == img.height
 
 
