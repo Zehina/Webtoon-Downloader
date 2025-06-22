@@ -5,7 +5,7 @@
   <h2 align="center">Webtoon Downloader</h2>
 
   <p align="cen">
-    A simple tool for downloading chapters of any releases hosted on the webtoons website.
+    A simple blazing fast tool for downloading chapters of any releases hosted on the webtoons website.⚡
     <br />
     <br />
     <a href="https://github.com/Zehina/Webtoon-Downloader/issues">Report Bug</a>
@@ -46,9 +46,7 @@
 
 ## Supported Sites
 
-- https://www.webtoons.com/
-
-<!-- GETTING STARTED -->
+- [https://www.webtoons.com/](https://www.webtoons.com/)
 
 ## Getting Started
 
@@ -60,130 +58,207 @@ To get a local copy up and running follow these simple steps.
 
 ### Compatibility
 
-Webtoon Downloader is supported on Windows, Linux & OSX. The minimum python version required is: 3.10
+Webtoon Downloader runs on **Windows**, **Linux**, and **macOS**. Requires **Python 3.10+**.
 
 ### Installation
 
-Install via `pip` or `pipx`
+Install via `pipx` (recommended):
 
-```sh
-pip install webtoon_downloader
+```bash
+pipx install webtoon_downloader
 ```
 
-<!-- USAGE EXAMPLES -->
+---
 
 ## Usage
 
-- Downloading all chapters of a given title.
-  ```ps
-  $ webtoon-downloader "www.webtoons.com/en/.../.../list?title_no=...&page=1"
+> Run `webtoon-downloader --help` for full options.
+
+### Basic Examples
+
+- Download **all chapters** of a series:
+
+  ```bash
+  webtoon-downloader "https://www.webtoons.com/en/.../list?title_no=..."
   ```
-- Downloading all released chapters starting from chapter 10 until the last released chapter.
-  ```ps
-  $ webtoon-downloader [url] --start 10
+
+- Download from **chapter 10 to the end**:
+
+  ```bash
+  webtoon-downloader [url] --start 10
   ```
-- Downloading all released chapters until chapter 150.
-  ```ps
-  $ webtoon-downloader [url] --end 150
+
+- Download up to **chapter 150**:
+
+  ```bash
+  webtoon-downloader [url] --end 150
   ```
-- Downloading all released chapters between chapter 35 and chapter 67, inclusive of both of these chapters.
-  ```ps
-  $ webtoon-downloader [url] --start 35 --end 67
+
+- Download a specific range (inclusive):
+
+  ```bash
+  webtoon-downloader [url] --start 35 --end 67
   ```
-- Downloading only the latest released chapter using either `-l` or `--latest`.
-  ```ps
-  $ webtoon-downloader [url] --latest
+
+- Download only the **latest released** chapter:
+
+  ```bash
+  webtoon-downloader [url] --latest
   ```
-- You can change the format of the downloaded pictures with the `--images-format` argument
-  ```ps
-  $ webtoon-downloader [url] --images-format 'png'
+
+### Customization
+
+#### Rate Limiting & Stability
+
+Downloading a large number of chapters in quick succession can trigger rate limits from Webtoons' servers. If you experience timeouts or missing content, you can mitigate this using the following options:
+
+- **Retry strategy**: determines how retries are handled when a request fails. By default, the tool uses `exponential` backoff.
+
+  ```bash
+  webtoon-downloader [url] --retry-strategy exponential
   ```
-- By default, the downloaded chapters will be stored under the current working directory with the folder name [series_title].
-  For example, downloading Tower of God, Chapter 150 would result in the following:
-  `ps
+
+  Available values: `exponential`, `linear`, `fixed`
+
+- **Concurrency settings**: tune how many workers download in parallel. By default:
+
+  - `--concurrent-chapters` = `6`
+  - `--concurrent-pages` = `120`
+
+  Reduce these values if you hit rate limits:
+
+  ```bash
+  webtoon-downloader [url] --concurrent-chapters 2 --concurrent-pages 5
+  ```
+
+- **Proxy support**: if you're still rate limited, you can configure the downloader to use a proxy (e.g., local proxy pool or SOCKS proxy).
+
+  ```bash
+  webtoon-downloader [url] --proxy http://127.0.0.1:7890
+  ```
+
+If you continue to experience issues, experiment with different combinations of retry strategy and concurrency, or use a rotating proxy setup.
+
+### Other Options
+
+- Change image format (e.g., png, jpg):
+
+  ```bash
+  webtoon-downloader [url] --image-format png
+  ```
+
+- Set output folder:
+
+By default, the downloaded chapters will be stored under the current working directory with the folder name \[series_title].
+
+Example:
+
+```
 Tower_of_God
-    │--150_001.jpg
-    │--150_002.jpg
-    │--150_003.jpg
-    │...
-`
-- In order to download these images into a different folder, you can use the `--dest` optional argument.
-
-  ```ps
-  $ webtoon-downloader [url] --dest ./path/to/parent/folder/of/downloaded/images
-  ```
-
-* The downloaded images of the chapters are by default all located in the `[dest]`, however these images can be separated into separate directories by providing the `--separate` argument, where each directory corresponds to a downloaded chapter.
-
-  ```ps
-  $ webtoon-downloader [url] --separate
-  ```
-
-  For example, downloading Tower of God, Chapter 150 to 152 would result in the following:
-
-  ```ps
-  Tower_of_God
-      │150
-          │--150_001.jpg
-          │--150_002.jpg
-          │--150_003.jpg
-          │...
-      │151
-          │--151_001.jpg
-          │--151_002.jpg
-          │--151_003.jpg
-          │...
-      │152
-          │--152_001.jpg
-          │--152_002.jpg
-          │--152_003.jpg
-          │...
-  ```
-
-- You can additionally export the summary, chapter-title and author-notes into text files.
-  You can select the format for the output as either JSON (default) or plain text files or both.
-  `ps
-$ webtoon-downloader [url] --export-texts [--export-format <json|text|all>]
-`
-
-For more details on positional arguments, please use the `-h ` or `--help` argument:
-
-```console
-webtoon_downloader --help
+    ├── 150_001.jpg
+    ├── 150_002.jpg
+    ├── 150_003.jpg
+    └── ...
 ```
 
-<!-- CONTRIBUTING -->
+Otherwise, use `--out` to specify a custom directory:
+
+```bash
+webtoon-downloader [url] --out ./my_folder
+```
+
+- Save chapters into **separate folders** corresponding to each chapter:
+
+  ```bash
+  webtoon-downloader [url] --separate
+  ```
+
+  For example, downloading Tower of God, Chapter 150 to 152 would result in:
+
+  ```
+  Tower_of_God
+      ├── 150
+      │   ├── 150_001.jpg
+      │   ├── 150_002.jpg
+      │   └── ...
+      ├── 151
+      │   ├── 151_001.jpg
+      │   └── ...
+      └── 152
+          ├── 152_001.jpg
+          └── ...
+  ```
+
+- Export summary, chapter titles, and author notes:
+
+  ```bash
+  webtoon-downloader [url] --export-metadata --export-format json
+  ```
+
+- Change storage format (e.g., zip, cbz, pdf):
+
+  ```bash
+  webtoon-downloader [url] --save-as cbz
+  ```
+
+- Enable debug logging:
+
+  ```bash
+  webtoon-downloader [url] --debug
+  ```
+
+- Use a proxy server:
+
+  ```bash
+  webtoon-downloader [url] --proxy http://127.0.0.1:7890
+  ```
+
+- Set retry strategy for failed requests (exponential, linear, fixed, none):
+
+  ```bash
+  webtoon-downloader [url] --retry-strategy exponential
+  ```
+
+  n.b. `none` will disable retries, so use with caution.
+
+- Control concurrency to avoid rate limits:
+
+  ```bash
+  webtoon-downloader [url] --concurrent-chapters 2 --concurrent-pages 5
+  ```
+
+---
 
 ## Contributing
 
 Any contributions you make are **greatly appreciated**.
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+1. Fork the repo
+2. Create a branch (`git checkout -b feature/new-idea`)
+3. Commit changes (`git commit -m 'Add new idea'`)
+4. Push to GitHub (`git push origin feature/new-idea`)
+5. Create a pull request
 
-<!-- LICENSE -->
+---
 
 ## License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See `LICENSE` for more.
 
-<!-- CONTACT -->
+---
 
 ## Contact
 
-Zehina - zehinadev@gmail.com
+**Zehina** – [zehinadev@gmail.com](mailto:zehinadev@gmail.com)
+[Project homepage](https://github.com/Zehina/Webtoon-Downloader)
 
-Project Link: [https://github.com/Zehina/Webtoon-Downloader](https://github.com/Zehina/Webtoon-Downloader)
-
-<!-- ACKNOWLEDGEMENTS -->
+---
 
 ## Built With
 
-- [Rich](https://github.com/willmcgugan/rich) Amazing and beautiful text formatting in terminals.
-- [Webtoons](https://webtoons.com) For the accessibility to thousands of free comics.
+- [Rich](https://github.com/Textualize/rich) — Beautiful terminal formatting
+- [Webtoons](https://www.webtoons.com/) — For the accessibility to thousands of free comics.
+- Many other libraries and tools used in this project can be found in the [pyproject.toml](https://github.com/Zehina/Webtoon-Downloader/blob/master/pyproject.toml) file.
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->

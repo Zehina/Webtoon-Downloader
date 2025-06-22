@@ -4,7 +4,7 @@ import asyncio
 import contextlib
 import signal
 import sys
-from typing import Any
+from typing import Any, Literal
 
 import rich_click as click
 
@@ -144,7 +144,7 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
 )
 @click.option(
     "--retry-strategy",
-    type=click.Choice(["exponential", "linear", "fixed"]),
+    type=click.Choice(["exponential", "linear", "fixed", "none"]),
     default="exponential",
     show_default=True,
     help="Retry strategy for failed requests",
@@ -165,7 +165,7 @@ def cli(  # noqa: C901
     concurrent_chapters: int,
     concurrent_pages: int,
     proxy: str,
-    retry_strategy: RetryStrategy | None,
+    retry_strategy: RetryStrategy | Literal["none"] | None,
     debug: bool,
 ) -> None:
     log, console = webtoon_downloader.logger.setup(
@@ -212,7 +212,7 @@ def cli(  # noqa: C901
         on_webtoon_fetched=progress_manager.on_webtoon_fetched,
         concurrent_chapters=concurrent_chapters,
         concurrent_pages=concurrent_pages,
-        retry_strategy=retry_strategy,
+        retry_strategy=retry_strategy if retry_strategy != "none" else None,
         proxy=proxy,
     )
 
