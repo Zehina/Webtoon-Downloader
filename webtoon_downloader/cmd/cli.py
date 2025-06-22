@@ -245,10 +245,11 @@ def cli(  # noqa: C901
         main_task = loop.create_task(comic.download_webtoon(opts))
         signal.signal(signal.SIGINT, _raise_graceful_exit)
         signal.signal(signal.SIGTERM, _raise_graceful_exit)
-        progress.log("Press [bold]Ctrl+C[/] to stop the download early...")
+        progress.print("Press [bold]Ctrl+C[/] to stop the download early...")
         with contextlib.suppress(GracefulExit, asyncio.CancelledError):
             try:
                 loop.run_until_complete(main_task)
+                progress.print("Download complete!")
             except WebtoonDownloadError as exc:
                 console.print(f"[red][bold]Download error:[/bold] {exc}[/]")
                 if webtoon_downloader.cmd.exceptions.is_root_cause_rate_limit_error(exc.cause):
