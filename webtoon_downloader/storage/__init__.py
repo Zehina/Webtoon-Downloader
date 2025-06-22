@@ -29,6 +29,7 @@ class AioWriter(Protocol):
         Returns:
             The number of bytes written.
         """
+        ...
 
     async def __aenter__(self) -> AioWriter:
         """
@@ -37,11 +38,13 @@ class AioWriter(Protocol):
         Returns:
             An instance of the class implementing the AioWriter protocol.
         """
+        ...
 
     async def __aexit__(self, *_: tuple) -> None:
         """
         Asynchronous context manager exit, for cleaning up resources.
         """
+        ...
 
 
 __all__ = [

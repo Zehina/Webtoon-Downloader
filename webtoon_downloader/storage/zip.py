@@ -127,19 +127,21 @@ class AioFileBufferedZipWriter(AioZipWriter):
         Returns:
             The number of bytes written.
         """
-        with Path(tempfile.NamedTemporaryFile(delete=False, suffix=".webtoon_downloader.tmp").name) as temp_file:
+        written = 0
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".webtoon_downloader.tmp") as tmp:
+            temp_file = Path(tmp.name)
             self._temp_files.append(temp_file)
-            written = 0
-            try:
-                async with aiofiles.open(temp_file, mode="wb") as file:
-                    async for chunk in stream:
-                        await file.write(chunk)
-                        written += len(chunk)
-                await self._add_to_zip(temp_file, item_name)
-            finally:
-                temp_file.unlink(missing_ok=True)
 
-            return written
+        try:
+            async with aiofiles.open(temp_file, mode="wb") as file:
+                async for chunk in stream:
+                    await file.write(chunk)
+                    written += len(chunk)
+            await self._add_to_zip(temp_file, item_name)
+        finally:
+            temp_file.unlink(missing_ok=True)
+
+        return written
 
     async def _add_to_zip(self, temp_file_path: Path, item_name: str) -> None:
         """

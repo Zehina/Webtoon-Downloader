@@ -62,12 +62,12 @@ async def test_pdf_writer() -> None:
         Image.new("RGB", (300, 300), color="blue"),
     ]
 
-    with tempfile.NamedTemporaryFile(prefix="test_pdf", suffix=".pdf") as file:
-        async with AioPdfWriter(file) as writer:
+    with tempfile.NamedTemporaryFile(prefix="test_pdf", suffix=".pdf") as f:
+        async with AioPdfWriter(f) as writer:
             for idx, img in enumerate(test_images):
                 await writer.write(async_iter_image(img), f"image_{idx}.jpg")
 
-        with fitz.open(file) as doc:
+        with fitz.open(f) as doc:
             assert len(doc) == len(test_images)  # Check number of pages
 
             for page_num, img in enumerate(test_images):
