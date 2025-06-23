@@ -49,9 +49,10 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     return value
 
 
-def validate_quality(ctx, param, value):
+def validate_quality(ctx: Any, param: Any, value: int) -> int:
     if value < 40 or value > 100 or value % 10 != 0:
         raise CLIInvalidQualityError(value)
+
     return value
 
 
