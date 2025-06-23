@@ -42,7 +42,8 @@ class WebtoonDownloadOptions:
         concurrent_chapters       : The number of chapters to download concurrently.
         concurrent_pages          : The number of images to download concurrently.
         retry_strategy            : The strategy to use for retrying failed downloads.
-        proxy:                    : proxy address to use for making requests.
+        proxy                     : proxy address to use for making requests.
+        quality                   : The quality of the image to download
     """
 
     url: str
@@ -51,6 +52,8 @@ class WebtoonDownloadOptions:
     end: int | None = None
     latest: bool = False
     destination: str | None = None
+
+    quality: int = 100
 
     export_metadata: bool = False
     exporter_format: DataExporterFormat = "json"

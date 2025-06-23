@@ -50,7 +50,7 @@ class ChapterDownloader:
         self._semaphore = asyncio.Semaphore(self.concurrent_downloads_limit)
 
     async def run(
-        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter
+        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter, quality: int = 100
     ) -> list[DownloadResult]:
         """
         Asynchronously downloads a single chapter by downaloding all its pages.
@@ -59,6 +59,7 @@ class ChapterDownloader:
             chapter_info    : Information about the chapter to download.
             directory       : The directory to save downloaded images and texts.
             storage         : The storage writer to use for saving images.
+            quality         : The quality of the image to download.
 
         Returns:
             A list of download results.
@@ -68,14 +69,14 @@ class ChapterDownloader:
         """
         try:
             async with self._semaphore:
-                return await self._run(chapter_info, directory, storage)
+                return await self._run(chapter_info, directory, storage, quality)
         except ChapterDownloadError:
             raise
         except Exception as exc:
             raise ChapterDownloadError(chapter_info.viewer_url, exc, chapter_info=chapter_info) from exc
 
     async def _run(
-        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter
+        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter, quality: int = 100
     ) -> list[DownloadResult]:
         """Internal method to handle the download logic for a Webtoon chapter."""
         tasks: list[asyncio.Task] = []
@@ -118,13 +119,15 @@ class ChapterDownloader:
             for n, url in enumerate(img_urls, start=1):
                 page = PageInfo(n, url, len(img_urls), chapter_info)
                 name = str(chapter_directory / self.file_name_generator.get_page_filename(page))
-                tasks.append(self._create_task(chapter_info, url, name, storage))
+                tasks.append(self._create_task(chapter_info, url, name, storage, quality))
             res = await asyncio.gather(*tasks, return_exceptions=False)
 
         await self._report_progress(chapter_info, "Completed")
         return res
 
-    def _create_task(self, chapter_info: ChapterInfo, url: str, name: str, storage: AioWriter) -> asyncio.Task:
+    def _create_task(
+        self, chapter_info: ChapterInfo, url: str, name: str, storage: AioWriter, quality: int = 100
+    ) -> asyncio.Task:
         """
         Creates an asynchronous task for downloading a single page of a Webtoon chapter.
 
@@ -133,15 +136,28 @@ class ChapterDownloader:
             url             : URL of the image to download.
             name            : The name to save the image as.
             storage         : The storage writer for saving the image.
+            quality         : The quality of the image to download.
 
         Returns:
             An asyncio Task for downloading the image.
         """
 
         async def _task() -> ImageDownloadResult:
-            log.debug('Downloading: "%s" from "%s" from chapter "%s"', name, url, chapter_info.viewer_url)
+            log.debug(
+                'Downloading: "%s" from "%s" with quality "%d" from chapter "%s"',
+                name,
+                url,
+                quality,
+                chapter_info.viewer_url,
+            )
             res = await self.image_downloader.run(url, name, storage)
-            log.debug('Finished downloading: "%s" from "%s" from chapter URL: "%s"', name, url, chapter_info.viewer_url)
+            log.debug(
+                'Finished downloading: "%s" from "%s" with quality "%d" from chapter URL: "%s"',
+                name,
+                url,
+                quality,
+                chapter_info.viewer_url,
+            )
             await self._report_progress(chapter_info, "PageCompleted")
             return res
 
