@@ -12,6 +12,7 @@ import webtoon_downloader.cmd.exceptions
 import webtoon_downloader.logger
 from webtoon_downloader.cmd.exceptions import (
     CLIInvalidConcurrentCountError,
+    CLIInvalidQualityError,
     CLIInvalidStartAndEndRangeError,
     CLILatestWithStartOrEndError,
     CLISeparateOptionWithNonImageSaveAsError,
@@ -45,6 +46,12 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     if value is not None and value <= 0:
         raise CLIInvalidConcurrentCountError(value)
 
+    return value
+
+
+def validate_quality(ctx, param, value):
+    if value < 40 or value > 100 or value % 10 != 0:
+        raise CLIInvalidQualityError(value)
     return value
 
 
@@ -149,6 +156,14 @@ def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | 
     show_default=True,
     help="Retry strategy for failed requests",
 )
+@click.option(
+    "--quality",
+    type=int,
+    default=100,
+    show_default=True,
+    callback=validate_quality,
+    help="Image quality (must be between 40 and 100, divisible by 10)",
+)
 @click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
 def cli(  # noqa: C901
     ctx: click.Context,
@@ -166,6 +181,7 @@ def cli(  # noqa: C901
     concurrent_pages: int,
     proxy: str,
     retry_strategy: RetryStrategy | Literal["none"] | None,
+    quality: int,
     debug: bool,
 ) -> None:
     log, console = webtoon_downloader.logger.setup(
@@ -213,6 +229,7 @@ def cli(  # noqa: C901
         concurrent_chapters=concurrent_chapters,
         concurrent_pages=concurrent_pages,
         retry_strategy=retry_strategy if retry_strategy != "none" else None,
+        quality=quality,
         proxy=proxy,
     )
 

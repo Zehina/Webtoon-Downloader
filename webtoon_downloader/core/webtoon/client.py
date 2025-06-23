@@ -7,9 +7,10 @@ from dataclasses import dataclass, field
 from typing import AsyncGenerator, Literal
 
 import httpx
+from furl import furl
 from httpx_retries import Retry, RetryTransport
 
-from webtoon_downloader.core.exceptions import ImageDownloadError, RateLimitedError
+from webtoon_downloader.core.exceptions import DownloadError, ImageDownloadError, RateLimitedError
 
 log = logging.getLogger(__name__)
 
@@ -98,8 +99,27 @@ class WebtoonHttpClient:
 
     @asynccontextmanager
     async def stream(self, method: str, url: str) -> AsyncGenerator[httpx.Response]:
+        async with self._client.stream(method, url) as response:
+            try:
+                response.raise_for_status()
+            except httpx.HTTPError as exc:
+                if response.status_code == 429:
+                    raise DownloadError(
+                        url=url, cause=RateLimitedError(f"Rate limitied while streaming from {url}")
+                    ) from exc
+
+            yield response
+
+    @asynccontextmanager
+    async def stream_image(self, url: str, quality: int | None = 100) -> AsyncGenerator[httpx.Response]:
+        quality = quality or 100
+        if quality <= 0 or quality > 100:
+            raise ValueError("Quality must be between 1 and 100")  # noqa: TRY003
+
+        url = furl(url).remove(query="type").url if quality == 100 else furl(url).set(query={"type": f"q{quality}"}).url
+
         async with self._client.stream(
-            method,
+            "GET",
             url,
             headers={
                 "referer": WebtoonURL,

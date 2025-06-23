@@ -40,6 +40,7 @@ class WebtoonDownloader:
         url                     : URL of the Webtoon series to download.
         chapter_downloader      : The downloader responsible for individual chapters.
         storage_type            : The type of storage to use for the downloaded chapters.
+        quality                 : The quality of the image to download.
         start_chapter           : The first chapter to download.
         end_chapter             : The last chapter to download.
         directory               : The directory where the downloaded chapters will be stored.
@@ -52,6 +53,7 @@ class WebtoonDownloader:
     client: WebtoonHttpClient
     chapter_downloader: ChapterDownloader
     storage_type: StorageType
+    quality: int
 
     start_chapter: int | None = None
     end_chapter: int | None | Literal["latest"] = None
@@ -97,7 +99,7 @@ class WebtoonDownloader:
 
         tasks = []
         for chapter_info in chapter_list:
-            task = self._create_task(chapter_info)
+            task = self._create_task(chapter_info, self.quality)
             tasks.append(task)
 
         results = await asyncio.gather(*tasks, return_exceptions=False)
@@ -124,13 +126,13 @@ class WebtoonDownloader:
 
         return chapters
 
-    def _create_task(self, chapter_info: ChapterInfo) -> asyncio.Task:
+    def _create_task(self, chapter_info: ChapterInfo, quality: int = 100) -> asyncio.Task:
         """
         Creates an asynchronous task for downloading a Webtoon chapter.
 
         Args:
             chapter_info    : Information about the specific chapter to download.
-            semaphore       : The semaphore to attach to the task to limit concurrent downloads.
+            quality         : The quality of the image to download.
 
         Returns:
             An asyncio Task object for downloading the chapter.
@@ -138,7 +140,7 @@ class WebtoonDownloader:
 
         async def task() -> list[DownloadResult]:
             storage = await self._get_storage(chapter_info)
-            return await self.chapter_downloader.run(chapter_info, self._directory, storage)
+            return await self.chapter_downloader.run(chapter_info, self._directory, storage, quality)
 
         return asyncio.create_task(task())
 
@@ -220,6 +222,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         storage_type=opts.save_as,
         exporter=exporter,
         on_webtoon_fetched=opts.on_webtoon_fetched,
+        quality=opts.quality,
     )
     try:
         return await downloader.run()

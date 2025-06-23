@@ -3,7 +3,7 @@ from dataclasses import dataclass
 import pytest
 
 from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
-from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor
+from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor, WebtoonViewerPageExtractor
 
 
 @dataclass
@@ -71,3 +71,50 @@ async def test_webtoon_main_page_extractor(test_case: WebtoonTestCase) -> None:
     assert extractor.get_series_title().strip() == test_case.expected_title
     assert extractor.get_series_summary().strip() == test_case.expected_summary
     assert extractor.get_chapter_viewer_url() == test_case.expected_viewer_url
+
+
+@dataclass
+class ViewerTestCase:
+    test_id: str
+    url: str
+    expected_title: str
+    expected_notes: str
+    expected_img_count: int
+
+
+test_cases = [
+    ViewerTestCase(
+        test_id="ViewerRegularEN#TowerOfGodEp234",
+        url="https://www.webtoons.com/en/fantasy/tower-of-god/season-3-ep-234/viewer?title_no=95&episode_no=652",
+        expected_title="[Season 3] Ep. 234",
+        expected_notes="",
+        expected_img_count=119,
+    ),
+    ViewerTestCase(
+        test_id="ViewerRegularFR#TowerOfGodEp234",
+        url="https://www.webtoons.com/fr/fantasy/tower-of-god/saison-3-ep-234/viewer?title_no=1832&episode_no=651",
+        expected_title="[Saison 3] Ep. 234",
+        expected_notes="",
+        expected_img_count=137,
+    ),
+    ViewerTestCase(
+        test_id="ViewerCanvasEN#SwordsEp1",
+        url="https://www.webtoons.com/en/canvas/swords-the-webcomic/swords-i/viewer?title_no=198852&episode_no=1",
+        expected_title="Swords I",
+        expected_notes="Ask not for who the Bread swings, its swings for thee.",
+        expected_img_count=8,
+    ),
+]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("test_case", test_cases, ids=lambda tc: tc.test_id)
+async def test_webtoon_viewer_page_extractor(test_case: ViewerTestCase) -> None:
+    async with WebtoonHttpClient() as client:
+        resp = await client.get(test_case.url)
+
+    extractor = WebtoonViewerPageExtractor(resp.text)
+
+    assert extractor.get_chapter_title().strip() == test_case.expected_title
+    assert extractor.get_chapter_notes().strip() == test_case.expected_notes
+    assert len(extractor.get_img_urls()) == test_case.expected_img_count

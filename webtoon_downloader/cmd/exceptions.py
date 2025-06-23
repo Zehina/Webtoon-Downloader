@@ -70,6 +70,16 @@ class CLIInvalidConcurrentCountError(click.BadParameter):
         super().__init__(message)
 
 
+class CLIInvalidQualityError(click.BadParameter):
+    """
+    Custom error for handling invalid value for quality in the CLI.
+    """
+
+    def __init__(self, value: Any):
+        message = f"Invalid value for quality: {value}. Must be between 40 and 100 and divisible by 10"
+        super().__init__(message)
+
+
 def handle_deprecated_options(_: click.Context, param: click.Parameter, value: Any) -> None:
     """Handler for deprecated options"""
     if param.name == "export_texts" and value:

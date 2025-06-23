@@ -46,13 +46,15 @@ class ImageDownloader:
     def __post_init__(self) -> None:
         self._semaphore = asyncio.Semaphore(self.concurent_downloads_limit)
 
-    async def run(self, url: str, target: str, storage: AioWriter) -> ImageDownloadResult:
+    async def run(self, url: str, target: str, storage: AioWriter, quality: int | None = 100) -> ImageDownloadResult:
         """
         Initiates the downloading of an image from a specified URL.
 
         Args:
             url       : The URL of the image to be downloaded.
             name      : The target name of the image. Note: The extension can be mutated by the image downloader.
+            storage   : The storage writer for saving the image.
+            quality   : The quality of the image to download.
 
         Returns:
             ImageDownloadResult: The result of the download operation.
@@ -62,18 +64,20 @@ class ImageDownloader:
         """
         try:
             async with self._semaphore:
-                return await self._download_image(url, target, storage)
+                return await self._download_image(url, target, storage, quality=quality)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
 
-    async def _download_image(self, url: str, target: str, storage: AioWriter) -> ImageDownloadResult:
+    async def _download_image(
+        self, url: str, target: str, storage: AioWriter, quality: int | None = 100
+    ) -> ImageDownloadResult:
         """
         Downloads and processes the byte image stream from a given URL.
 
         This also applies transformations to the stream, and saves it to the storage.
 
         """
-        async with self.client.stream("GET", url) as response:
+        async with self.client.stream_image(url, quality) as response:
             try:
                 response.raise_for_status()
             except httpx.HTTPError as exc:
