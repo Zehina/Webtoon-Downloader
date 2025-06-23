@@ -64,7 +64,7 @@ class ImageDownloader:
         """
         try:
             async with self._semaphore:
-                return await self._download_image(url, target, storage, quality=quality)
+                return await self._download_image(url, target, storage, quality)
         except Exception as exc:
             raise ImageDownloadError(url=url, cause=exc) from exc
 

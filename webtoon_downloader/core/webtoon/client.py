@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import random
+import re
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import AsyncGenerator, Literal
@@ -116,8 +117,19 @@ class WebtoonHttpClient:
         if quality <= 0 or quality > 100:
             raise ValueError("Quality must be between 1 and 100")  # noqa: TRY003
 
-        url = furl(url).remove(query="type").url if quality == 100 else furl(url).set(query={"type": f"q{quality}"}).url
+        f_url = furl(url)
+        current_type = f_url.args.get("type")
+        # Only act if it's a known quality type (qNN, qNNN, etc.)
+        if current_type and re.fullmatch(r"q\d{1,3}", current_type):
+            if quality == 100:
+                f_url.remove(args=["type"])
+            else:
+                f_url.set(args={"type": f"q{quality}"})
+        elif not current_type and quality < 100:
+            # Add type if missing and quality < 100
+            f_url.set(args={"type": f"q{quality}"})
 
+        url = f_url.url
         async with self._client.stream(
             "GET",
             url,
