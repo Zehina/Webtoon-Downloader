@@ -231,6 +231,14 @@ webtoon-downloader [url] --out ./my_folder
   webtoon-downloader [url] --concurrent-chapters 2 --concurrent-pages 5
   ```
 
+- Download smaller images by specifying a quality:
+
+  ```bash
+  webtoon-downloader [url] --quality 50
+  ```
+
+  n.b. The quality setting is a percentage of the original image quality (40-100). Only multiple of 10.
+
 ---
 
 ## Contributing
