@@ -26,3 +26,11 @@ async def test_webtoon_downloader() -> None:
             async with client.stream_image(image_url, quality=quality) as img:
                 content = await img.aread()
                 assert len(content) == expected_size, f"Mismatch at quality={quality}"
+
+    opti_image_url = (
+        "https://webtoon-phinf.pstatic.net/20220929_277/16644486960263FxPF_PNG/1tw_warning_v2.png?type=opti"
+    )
+
+    async with WebtoonHttpClient() as client, client.stream_image(opti_image_url) as img:
+        content = await img.aread()
+        assert len(content) == 18102

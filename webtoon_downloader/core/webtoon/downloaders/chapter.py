@@ -150,7 +150,7 @@ class ChapterDownloader:
                 quality,
                 chapter_info.viewer_url,
             )
-            res = await self.image_downloader.run(url, name, storage)
+            res = await self.image_downloader.run(url, name, storage, quality)
             log.debug(
                 'Finished downloading: "%s" from "%s" with quality "%d" from chapter URL: "%s"',
                 name,
