@@ -117,12 +117,29 @@ class AioImageFormatTransformer:
             BytesIO stream of the transformed image.
         """
         with Image.open(image_stream) as image:
-            if self._target_format == "JPEG" and image.mode == "P":
-                image = image.convert("RGB")  # Need to convert to appropriate pallet for JPEG
+            if self._target_format == "JPEG":
+                # converts transparency to white if source is transparent
+                if self.has_transparency(image):
+                    log.warning("Image has transparency that will be discarded when converting to JPEG")
+                    image = image.convert("RGBA")
+                    background = Image.new("RGB", image.size, (255, 255, 255))
+                    background.paste(image, mask=image.split()[3])  # use alpha channel as mask
+                    image = background
+                else:
+                    image = image.convert("RGB")
             output_stream = BytesIO()
             image.save(output_stream, format=self._target_format)
             output_stream.seek(0)
             return output_stream
+
+    @staticmethod
+    def has_transparency(image: Image.Image) -> bool:
+        return (
+            # modes that include transparency
+            image.mode in ("RGBA", "LA", "PA", "RGBa", "La")
+            # transparency specifed in info attribute
+            or (image.mode in ("1", "L", "I", "P", "RGB") and "transparency" in image.info)
+        )
 
     def _update_target_name(self, target_name: str) -> str:
         """
