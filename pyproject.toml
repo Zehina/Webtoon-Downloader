@@ -1,14 +1,12 @@
 [tool.poetry]
 name = "webtoon_downloader"
-version = "2.1.0"
+version = "2.2.0"
 description = "A fast scrapper ⚡ for downloading comics from the Webtoons platform."
 authors = ["Ali Taibi <zehinadev@gmail.com>"]
 repository = "https://github.com/Zehina/webtoon-downloader"
 documentation = "https://Zehina.github.io/webtoon-downloader/"
 readme = "README.md"
-packages = [
-  {include = "webtoon_downloader"}
-]
+packages = [{ include = "webtoon_downloader" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
@@ -17,7 +15,7 @@ lxml = "^5.3.1"
 pillow = "^10.1.0"
 rich = "^13.7.0"
 furl = "^2.1.3"
-httpx = {version = "^0.28.1", extras = ["http2"]}
+httpx = { version = "^0.28.1", extras = ["http2"] }
 aiofiles = "^23.2.1"
 pymupdf = "^1.23.8"
 typing-extensions = "^4.9.0"
@@ -77,42 +75,43 @@ line-length = 120
 fix = true
 lint.allowed-confusables = ["–"]
 lint.select = [
-    # flake8-2020
-    "YTT",
-    # flake8-bandit
-    "S",
-    # flake8-bugbear
-    "B",
-    # flake8-builtins
-    "A",
-    # flake8-comprehensions
-    "C4",
-    # flake8-debugger
-    "T10",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # mccabe
-    "C90",
-    # pycodestyle
-    "E", "W",
-    # pyflakes
-    "F",
-    # pygrep-hooks
-    "PGH",
-    # pyupgrade
-    "UP",
-    # ruff
-    "RUF",
-    # tryceratops
-    "TRY",
+  # flake8-2020
+  "YTT",
+  # flake8-bandit
+  "S",
+  # flake8-bugbear
+  "B",
+  # flake8-builtins
+  "A",
+  # flake8-comprehensions
+  "C4",
+  # flake8-debugger
+  "T10",
+  # flake8-simplify
+  "SIM",
+  # isort
+  "I",
+  # mccabe
+  "C90",
+  # pycodestyle
+  "E",
+  "W",
+  # pyflakes
+  "F",
+  # pygrep-hooks
+  "PGH",
+  # pyupgrade
+  "UP",
+  # ruff
+  "RUF",
+  # tryceratops
+  "TRY",
 ]
 lint.ignore = [
-    "E501",   # line-too-long
-    "E731",   # lambda-assignment
-    "S311",   # suspicious-non-cryptographic-random-usage
-    "TRY300", # try-consider-else
+  "E501",   # line-too-long
+  "E731",   # lambda-assignment
+  "S311",   # suspicious-non-cryptographic-random-usage
+  "TRY300", # try-consider-else
 ]
 
 [tool.ruff.format]
