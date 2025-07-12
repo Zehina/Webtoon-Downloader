@@ -142,7 +142,6 @@ class WebtoonViewerPageExtractor:
             return self._img_urls
 
         _nav = self._soup.find("div", class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b"))
-
         if not _nav:
             raise ElementNotFoundError("_img_viewer_area")
 
@@ -153,7 +152,7 @@ class WebtoonViewerPageExtractor:
         _tags = _nav.find_all("img")
         if not _tags:
             log.debug("img tags not found in img container")
-            raise ElementNotFoundError("all_img")
+            raise ElementNotFoundError("img")
 
         self._img_urls = [tag["data-url"] for tag in _tags]
 
