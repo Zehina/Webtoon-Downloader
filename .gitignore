@@ -75,3 +75,6 @@ dmypy.json
 
 # Vscode config files
 .vscode/
+
+# Log files
+*.log
