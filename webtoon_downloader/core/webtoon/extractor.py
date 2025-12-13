@@ -143,6 +143,10 @@ class WebtoonViewerPageExtractor:
 
         urls: list[str] = []
 
+        # Detect mature-content overlay (visual-only gate)
+        if self._soup.select_one("div.ly_wrap.fixed.on div.ly_adult"):
+            log.debug("Mature content overlay detected; attempting fallback image extraction")
+        
         # 1️⃣ Preferred: normal viewer container (non-mature pages)
         _nav = self._soup.find(
             "div",
