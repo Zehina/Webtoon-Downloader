@@ -68,10 +68,13 @@ class DataExporter:
             summary     : The summary text of the series.
             directory   : The directory where the summary file will be written. Defaults to the main destination directory.
         """
-        if not summary or not self._write_text:
+        if not summary:
             return
 
         self._data["summary"] = summary
+        if not self._write_text:
+            return
+
         await self._aio_write(file_path, summary)
 
     async def add_chapter_details(
