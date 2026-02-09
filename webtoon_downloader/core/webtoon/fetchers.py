@@ -135,9 +135,9 @@ class WebtoonFetcher:
         series_url: str,
         start_chapter: int | None = None,
         end_chapter: int | None | Literal["latest"] = None,
-        episode_no: int | None = None,
-        episode_start: int | None = None,
-        episode_end: int | None = None,
+        episode_id: int | None = None,
+        episode_id_start: int | None = None,
+        episode_id_end: int | None = None,
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -186,13 +186,13 @@ class WebtoonFetcher:
 
         filtered = chapter_details[int(start_chapter or 1) - 1 : end_chapter]
 
-        if episode_no is not None:
-            return [chapter for chapter in filtered if chapter.data_episode_no == episode_no]
+        if episode_id is not None:
+            return [chapter for chapter in filtered if chapter.data_episode_no == episode_id]
 
-        if episode_start is not None:
-            filtered = [chapter for chapter in filtered if chapter.data_episode_no >= episode_start]
+        if episode_id_start is not None:
+            filtered = [chapter for chapter in filtered if chapter.data_episode_no >= episode_id_start]
 
-        if episode_end is not None:
-            filtered = [chapter for chapter in filtered if chapter.data_episode_no <= episode_end]
+        if episode_id_end is not None:
+            filtered = [chapter for chapter in filtered if chapter.data_episode_no <= episode_id_end]
 
         return filtered

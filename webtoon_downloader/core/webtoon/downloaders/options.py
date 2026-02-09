@@ -30,9 +30,9 @@ class WebtoonDownloadOptions:
         url                       : Webtoon URL
         start                     : Starting chapter number. If None, the download starts from the first chapter.
         end                       : Ending chapter number. If None, the download goes until the last chapter.
-        episode_no                : Download a specific WEBTOON episode_no from viewer URL.
-        episode_start             : Starting WEBTOON episode_no (inclusive).
-        episode_end               : Ending WEBTOON episode_no (inclusive).
+        episode_id                : Download a specific WEBTOON episode_id from viewer URL.
+        episode_id_start             : Starting WEBTOON episode_id (inclusive).
+        episode_id_end               : Ending WEBTOON episode_id (inclusive).
         latest                    : Flag to download only the latest chapter. Ignores values set by start/end/episode filters.
         destination               : The directory where the chapters will be downloaded.
         export_metadata           : Flag to export webtoon and chapter metadata.
@@ -53,9 +53,9 @@ class WebtoonDownloadOptions:
 
     start: int | None = None
     end: int | None = None
-    episode_no: int | None = None
-    episode_start: int | None = None
-    episode_end: int | None = None
+    episode_id: int | None = None
+    episode_id_start: int | None = None
+    episode_id_end: int | None = None
     latest: bool = False
     destination: str | None = None
 

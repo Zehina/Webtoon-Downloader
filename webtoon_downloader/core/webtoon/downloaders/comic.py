@@ -57,9 +57,9 @@ class WebtoonDownloader:
 
     start_chapter: int | None = None
     end_chapter: int | None | Literal["latest"] = None
-    episode_no: int | None = None
-    episode_start: int | None = None
-    episode_end: int | None = None
+    episode_id: int | None = None
+    episode_id_start: int | None = None
+    episode_id_end: int | None = None
     directory: str | PathLike[str] | None = None
     exporter: DataExporter | None = None
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
@@ -124,9 +124,9 @@ class WebtoonDownloader:
             self.url,
             self.start_chapter,
             self.end_chapter,
-            episode_no=self.episode_no,
-            episode_start=self.episode_start,
-            episode_end=self.episode_end,
+            episode_id=self.episode_id,
+            episode_id_start=self.episode_id_start,
+            episode_id_end=self.episode_id_end,
         )
         if not chapters:
             raise NoChaptersFoundError
@@ -228,9 +228,9 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         directory=opts.destination,
         start_chapter=start,
         end_chapter=end,
-        episode_no=opts.episode_no,
-        episode_start=opts.episode_start,
-        episode_end=opts.episode_end,
+        episode_id=opts.episode_id,
+        episode_id_start=opts.episode_id_start,
+        episode_id_end=opts.episode_id_end,
         chapter_downloader=chapter_downloader,
         storage_type=opts.save_as,
         exporter=exporter,

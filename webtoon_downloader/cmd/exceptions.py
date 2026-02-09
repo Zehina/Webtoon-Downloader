@@ -20,11 +20,11 @@ class CLIInvalidStartAndEndRangeError(click.UsageError):
         super().__init__(message, ctx)
 
 
-class CLIInvalidEpisodeStartAndEndRangeError(click.UsageError):
-    """Raised when --episode-start is greater than --episode-end."""
+class CLIInvalidEpisodeIDStartAndEndRangeError(click.UsageError):
+    """Raised when --episode-id-start is greater than --episode-id-end."""
 
     def __init__(self, ctx: click.Context | None = None) -> None:
-        message = "Start episode_no cannot be greater than end episode_no."
+        message = "Start episode_id cannot be greater than end episode_id."
         super().__init__(message, ctx)
 
 
@@ -39,15 +39,15 @@ class CLILatestWithStartOrEndError(click.UsageError):
     """
 
     def __init__(self, ctx: click.Context | None = None) -> None:
-        message = "Options --start/--end/--episode-no/--episode-start/--episode-end and --latest cannot be used together."
+        message = "Options --start/--end/--episode-id/--episode-id-start/--episode-id-end and --latest cannot be used together."
         super().__init__(message, ctx)
 
 
-class CLIEpisodeNoWithEpisodeRangeError(click.UsageError):
-    """Raised when --episode-no is used with --episode-start/--episode-end."""
+class CLIEpisodeIDWithEpisodeIDRangeError(click.UsageError):
+    """Raised when --episode-id is used with --episode-id-start/--episode-id-end."""
 
     def __init__(self, ctx: click.Context | None = None) -> None:
-        message = "Option --episode-no cannot be used with --episode-start/--episode-end."
+        message = "Option --episode-id cannot be used with --episode-id-start/--episode-id-end."
         super().__init__(message, ctx)
 
 

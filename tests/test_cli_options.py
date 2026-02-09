@@ -8,6 +8,6 @@ def test_cli_shows_episode_options_in_help() -> None:
     result = runner.invoke(cli, ["--help"])
 
     assert result.exit_code == 0
-    assert "--episode-no" in result.output
-    assert "--episode-start" in result.output
-    assert "--episode-end" in result.output
+    assert "--episode-id" in result.output
+    assert "--episode-id-start" in result.output
+    assert "--episode-id-end" in result.output
