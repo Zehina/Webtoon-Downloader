@@ -20,6 +20,14 @@ class CLIInvalidStartAndEndRangeError(click.UsageError):
         super().__init__(message, ctx)
 
 
+class CLIInvalidEpisodeStartAndEndRangeError(click.UsageError):
+    """Raised when --episode-start is greater than --episode-end."""
+
+    def __init__(self, ctx: click.Context | None = None) -> None:
+        message = "Start episode_no cannot be greater than end episode_no."
+        super().__init__(message, ctx)
+
+
 class CLILatestWithStartOrEndError(click.UsageError):
     """
     This error is raised when the user attempts to use --latest in conjunction
@@ -31,7 +39,15 @@ class CLILatestWithStartOrEndError(click.UsageError):
     """
 
     def __init__(self, ctx: click.Context | None = None) -> None:
-        message = "Options --start/--end and --latest cannot be used together."
+        message = "Options --start/--end/--episode-no/--episode-start/--episode-end and --latest cannot be used together."
+        super().__init__(message, ctx)
+
+
+class CLIEpisodeNoWithEpisodeRangeError(click.UsageError):
+    """Raised when --episode-no is used with --episode-start/--episode-end."""
+
+    def __init__(self, ctx: click.Context | None = None) -> None:
+        message = "Option --episode-no cannot be used with --episode-start/--episode-end."
         super().__init__(message, ctx)
 
 

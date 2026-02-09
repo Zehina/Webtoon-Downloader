@@ -131,7 +131,13 @@ class WebtoonFetcher:
         return f"https://m.webtoons.com/api/v1/{self._get_webtoon_type(series_url)}/{series_id}"
 
     async def get_chapters_details(
-        self, series_url: str, start_chapter: int | None = None, end_chapter: int | None | Literal["latest"] = None
+        self,
+        series_url: str,
+        start_chapter: int | None = None,
+        end_chapter: int | None | Literal["latest"] = None,
+        episode_no: int | None = None,
+        episode_start: int | None = None,
+        episode_end: int | None = None,
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -178,4 +184,15 @@ class WebtoonFetcher:
         if end_chapter == "latest":
             return [chapter_details[-1]]
 
-        return chapter_details[int(start_chapter or 1) - 1 : end_chapter]
+        filtered = chapter_details[int(start_chapter or 1) - 1 : end_chapter]
+
+        if episode_no is not None:
+            return [chapter for chapter in filtered if chapter.data_episode_no == episode_no]
+
+        if episode_start is not None:
+            filtered = [chapter for chapter in filtered if chapter.data_episode_no >= episode_start]
+
+        if episode_end is not None:
+            filtered = [chapter for chapter in filtered if chapter.data_episode_no <= episode_end]
+
+        return filtered

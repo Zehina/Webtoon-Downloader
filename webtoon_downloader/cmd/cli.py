@@ -11,7 +11,9 @@ import rich_click as click
 import webtoon_downloader.cmd.exceptions
 import webtoon_downloader.logger
 from webtoon_downloader.cmd.exceptions import (
+    CLIEpisodeNoWithEpisodeRangeError,
     CLIInvalidConcurrentCountError,
+    CLIInvalidEpisodeStartAndEndRangeError,
     CLIInvalidQualityError,
     CLIInvalidStartAndEndRangeError,
     CLILatestWithStartOrEndError,
@@ -68,6 +70,9 @@ def validate_quality(ctx: Any, param: Any, value: int) -> int:
     help="Start chapter",
 )
 @click.option("--end", "-e", type=int, help="End chapter")
+@click.option("--episode-no", type=int, help="Download a specific WEBTOON episode_no")
+@click.option("--episode-start", type=int, help="Start WEBTOON episode_no (inclusive)")
+@click.option("--episode-end", type=int, help="End WEBTOON episode_no (inclusive)")
 @click.option(
     "--latest",
     "-l",
@@ -171,6 +176,9 @@ def cli(  # noqa: C901
     url: str,
     start: int,
     end: int,
+    episode_no: int,
+    episode_start: int,
+    episode_end: int,
     latest: bool,
     out: str,
     image_format: ImageFormat,
@@ -197,12 +205,16 @@ def cli(  # noqa: C901
             '[red]A Webtoon URL of the form [green]"https://www.webtoons.com/.../list?title_no=??"[/] of is required.'
         )
         ctx.exit(1)
-    if latest and (start or end):
+    if latest and (start or end or episode_no or episode_start or episode_end):
         raise CLILatestWithStartOrEndError(ctx)
     if separate and (save_as != "images"):
         raise CLISeparateOptionWithNonImageSaveAsError(ctx)
     if start is not None and end is not None and start > end:
         raise CLIInvalidStartAndEndRangeError(ctx)
+    if episode_start is not None and episode_end is not None and episode_start > episode_end:
+        raise CLIInvalidEpisodeStartAndEndRangeError(ctx)
+    if episode_no is not None and (episode_start is not None or episode_end is not None):
+        raise CLIEpisodeNoWithEpisodeRangeError(ctx)
 
     progress = init_progress(console)
     series_download_task = progress.add_task(
@@ -219,6 +231,9 @@ def cli(  # noqa: C901
         start=start,
         end=end,
         latest=latest,
+        episode_no=episode_no,
+        episode_start=episode_start,
+        episode_end=episode_end,
         destination=out,
         export_metadata=export_metadata,
         exporter_format=export_format,
