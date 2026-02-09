@@ -51,6 +51,14 @@ class CLIEpisodeIDWithEpisodeIDRangeError(click.UsageError):
         super().__init__(message, ctx)
 
 
+class CLIChapterRangeWithEpisodeIDRangeError(click.UsageError):
+    """Raised when chapter range flags are mixed with episode-id flags."""
+
+    def __init__(self, ctx: click.Context | None = None) -> None:
+        message = "Options --start/--end cannot be used with --episode-id/--episode-id-start/--episode-id-end."
+        super().__init__(message, ctx)
+
+
 class CLISeparateOptionWithNonImageSaveAsError(click.UsageError):
     """
     This error is raised when the user attempts to use --separate with a save-as

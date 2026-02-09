@@ -11,6 +11,7 @@ import rich_click as click
 import webtoon_downloader.cmd.exceptions
 import webtoon_downloader.logger
 from webtoon_downloader.cmd.exceptions import (
+    CLIChapterRangeWithEpisodeIDRangeError,
     CLIEpisodeIDWithEpisodeIDRangeError,
     CLIInvalidConcurrentCountError,
     CLIInvalidEpisodeIDStartAndEndRangeError,
@@ -215,6 +216,10 @@ def cli(  # noqa: C901
         raise CLIInvalidEpisodeIDStartAndEndRangeError(ctx)
     if episode_id is not None and (episode_id_start is not None or episode_id_end is not None):
         raise CLIEpisodeIDWithEpisodeIDRangeError(ctx)
+    if (start is not None or end is not None) and (
+        episode_id is not None or episode_id_start is not None or episode_id_end is not None
+    ):
+        raise CLIChapterRangeWithEpisodeIDRangeError(ctx)
 
     progress = init_progress(console)
     series_download_task = progress.add_task(
