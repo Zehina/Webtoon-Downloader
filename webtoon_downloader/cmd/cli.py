@@ -45,6 +45,40 @@ class GracefulExit(SystemExit):
     code = 1
 
 
+def validate_option_combinations(
+    ctx: click.Context,
+    *,
+    start: int | None,
+    end: int | None,
+    episode_id: int | None,
+    episode_id_start: int | None,
+    episode_id_end: int | None,
+    latest: bool,
+    separate: bool,
+    save_as: StorageType,
+) -> None:
+    """Validate mutually exclusive CLI option combinations."""
+    if latest and (start or end or episode_id or episode_id_start or episode_id_end):
+        raise CLILatestWithStartOrEndError(ctx)
+
+    if separate and (save_as != "images"):
+        raise CLISeparateOptionWithNonImageSaveAsError(ctx)
+
+    if start is not None and end is not None and start > end:
+        raise CLIInvalidStartAndEndRangeError(ctx)
+
+    if episode_id_start is not None and episode_id_end is not None and episode_id_start > episode_id_end:
+        raise CLIInvalidEpisodeIDStartAndEndRangeError(ctx)
+
+    if episode_id is not None and (episode_id_start is not None or episode_id_end is not None):
+        raise CLIEpisodeIDWithEpisodeIDRangeError(ctx)
+
+    if (start is not None or end is not None) and (
+        episode_id is not None or episode_id_start is not None or episode_id_end is not None
+    ):
+        raise CLIChapterRangeWithEpisodeIDRangeError(ctx)
+
+
 def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | None:  # pylint: disable=unused-argument
     if value is not None and value <= 0:
         raise CLIInvalidConcurrentCountError(value)
@@ -172,7 +206,7 @@ def validate_quality(ctx: Any, param: Any, value: int) -> int:
     help="Image quality (must be between 40 and 100, divisible by 10)",
 )
 @click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
-def cli(  # noqa: C901
+def cli(
     ctx: click.Context,
     url: str,
     start: int,
@@ -206,20 +240,17 @@ def cli(  # noqa: C901
             '[red]A Webtoon URL of the form [green]"https://www.webtoons.com/.../list?title_no=??"[/] of is required.'
         )
         ctx.exit(1)
-    if latest and (start or end or episode_id or episode_id_start or episode_id_end):
-        raise CLILatestWithStartOrEndError(ctx)
-    if separate and (save_as != "images"):
-        raise CLISeparateOptionWithNonImageSaveAsError(ctx)
-    if start is not None and end is not None and start > end:
-        raise CLIInvalidStartAndEndRangeError(ctx)
-    if episode_id_start is not None and episode_id_end is not None and episode_id_start > episode_id_end:
-        raise CLIInvalidEpisodeIDStartAndEndRangeError(ctx)
-    if episode_id is not None and (episode_id_start is not None or episode_id_end is not None):
-        raise CLIEpisodeIDWithEpisodeIDRangeError(ctx)
-    if (start is not None or end is not None) and (
-        episode_id is not None or episode_id_start is not None or episode_id_end is not None
-    ):
-        raise CLIChapterRangeWithEpisodeIDRangeError(ctx)
+    validate_option_combinations(
+        ctx,
+        start=start,
+        end=end,
+        episode_id=episode_id,
+        episode_id_start=episode_id_start,
+        episode_id_end=episode_id_end,
+        latest=latest,
+        separate=separate,
+        save_as=save_as,
+    )
 
     progress = init_progress(console)
     series_download_task = progress.add_task(

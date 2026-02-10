@@ -23,6 +23,32 @@ from webtoon_downloader.core.webtoon.models import ChapterInfo
 log = logging.getLogger(__name__)
 
 
+def apply_chapter_filters(
+    chapter_details: list[ChapterInfo],
+    start_chapter: int | None = None,
+    end_chapter: int | None | Literal["latest"] = None,
+    episode_id: int | None = None,
+    episode_id_start: int | None = None,
+    episode_id_end: int | None = None,
+) -> list[ChapterInfo]:
+    """Apply chapter index and episode-id filters in a single place."""
+    if end_chapter == "latest":
+        return [chapter_details[-1]]
+
+    filtered = chapter_details[int(start_chapter or 1) - 1 : end_chapter]
+
+    if episode_id is not None:
+        return [chapter for chapter in filtered if chapter.data_episode_no == episode_id]
+
+    if episode_id_start is not None:
+        filtered = [chapter for chapter in filtered if chapter.data_episode_no >= episode_id_start]
+
+    if episode_id_end is not None:
+        filtered = [chapter for chapter in filtered if chapter.data_episode_no <= episode_id_end]
+
+    return filtered
+
+
 class WebtoonDomain(str, Enum):
     """valid webtoon subdomains"""
 
@@ -181,18 +207,11 @@ class WebtoonFetcher:
             )
             chapter_details.append(chapter_info)
 
-        if end_chapter == "latest":
-            return [chapter_details[-1]]
-
-        filtered = chapter_details[int(start_chapter or 1) - 1 : end_chapter]
-
-        if episode_id is not None:
-            return [chapter for chapter in filtered if chapter.data_episode_no == episode_id]
-
-        if episode_id_start is not None:
-            filtered = [chapter for chapter in filtered if chapter.data_episode_no >= episode_id_start]
-
-        if episode_id_end is not None:
-            filtered = [chapter for chapter in filtered if chapter.data_episode_no <= episode_id_end]
-
-        return filtered
+        return apply_chapter_filters(
+            chapter_details=chapter_details,
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
+            episode_id=episode_id,
+            episode_id_start=episode_id_start,
+            episode_id_end=episode_id_end,
+        )
