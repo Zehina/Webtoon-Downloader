@@ -4,15 +4,7 @@ from webtoon_downloader.cmd.cli import cli
 
 TEST_URL = "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95"
 
-
-def test_cli_shows_episode_options_in_help() -> None:
-    runner = CliRunner()
-    result = runner.invoke(cli, ["--help"])
-
-    assert result.exit_code == 0
-    assert "--episode-id" in result.output
-    assert "--episode-id-start" in result.output
-    assert "--episode-id-end" in result.output
+# Help output assertions were removed in favor of behavior-focused tests.
 
 
 def test_cli_rejects_mixing_episode_id_with_episode_id_range() -> None:

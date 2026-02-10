@@ -23,28 +23,32 @@ from webtoon_downloader.core.webtoon.models import ChapterInfo
 log = logging.getLogger(__name__)
 
 
-def apply_chapter_filters(
-    chapter_details: list[ChapterInfo],
-    start_chapter: int | None = None,
-    end_chapter: int | None | Literal["latest"] = None,
-    episode_id: int | None = None,
-    episode_id_start: int | None = None,
-    episode_id_end: int | None = None,
-) -> list[ChapterInfo]:
+@dataclass(frozen=True)
+class ChapterSelection:
+    """Represents a single, explicit chapter-selection mode."""
+
+    start_chapter: int | None = None
+    end_chapter: int | None | Literal["latest"] = None
+    episode_id: int | None = None
+    episode_id_start: int | None = None
+    episode_id_end: int | None = None
+
+
+def apply_chapter_filters(chapter_details: list[ChapterInfo], selection: ChapterSelection) -> list[ChapterInfo]:
     """Apply chapter index and episode-id filters in a single place."""
-    if end_chapter == "latest":
+    if selection.end_chapter == "latest":
         return [chapter_details[-1]]
 
-    filtered = chapter_details[int(start_chapter or 1) - 1 : end_chapter]
+    filtered = chapter_details[int(selection.start_chapter or 1) - 1 : selection.end_chapter]
 
-    if episode_id is not None:
-        return [chapter for chapter in filtered if chapter.data_episode_no == episode_id]
+    if selection.episode_id is not None:
+        return [chapter for chapter in filtered if chapter.data_episode_no == selection.episode_id]
 
-    if episode_id_start is not None:
-        filtered = [chapter for chapter in filtered if chapter.data_episode_no >= episode_id_start]
+    if selection.episode_id_start is not None:
+        filtered = [chapter for chapter in filtered if chapter.data_episode_no >= selection.episode_id_start]
 
-    if episode_id_end is not None:
-        filtered = [chapter for chapter in filtered if chapter.data_episode_no <= episode_id_end]
+    if selection.episode_id_end is not None:
+        filtered = [chapter for chapter in filtered if chapter.data_episode_no <= selection.episode_id_end]
 
     return filtered
 
@@ -159,11 +163,7 @@ class WebtoonFetcher:
     async def get_chapters_details(
         self,
         series_url: str,
-        start_chapter: int | None = None,
-        end_chapter: int | None | Literal["latest"] = None,
-        episode_id: int | None = None,
-        episode_id_start: int | None = None,
-        episode_id_end: int | None = None,
+        selection: ChapterSelection | None = None,
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -172,14 +172,10 @@ class WebtoonFetcher:
 
         Args:
             series_url      : The URL of the Webtoon series from which to fetch chapter details.
-            start_chapter   : The starting chapter number from which to begin fetching details.
-            end_chapter     : chapter number up to which details should be fetched.
+            selection       : Chapter selection criteria. Defaults to all chapters.
 
         Returns:
             A list of ChapterInfo objects containing details for each chapter.
-            If end_chapter None, fetches all chapters up to the last available.
-            If end_chapter is set to latest and start_chapter is None then returns the last chapter
-            If both `start_chapter` and `end_chapter` are None, returns all chapters.
         """
         mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
         webtoon_api = WebtoonAPI(self.client)
@@ -207,11 +203,4 @@ class WebtoonFetcher:
             )
             chapter_details.append(chapter_info)
 
-        return apply_chapter_filters(
-            chapter_details=chapter_details,
-            start_chapter=start_chapter,
-            end_chapter=end_chapter,
-            episode_id=episode_id,
-            episode_id_start=episode_id_start,
-            episode_id_end=episode_id_end,
-        )
+        return apply_chapter_filters(chapter_details=chapter_details, selection=selection or ChapterSelection())

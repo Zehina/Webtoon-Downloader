@@ -20,7 +20,7 @@ from webtoon_downloader.core.webtoon.downloaders.options import StorageType, Web
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
 from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor
-from webtoon_downloader.core.webtoon.fetchers import WebtoonFetcher
+from webtoon_downloader.core.webtoon.fetchers import ChapterSelection, WebtoonFetcher
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 from webtoon_downloader.core.webtoon.namer import NonSeparateFileNameGenerator, SeparateFileNameGenerator
 from webtoon_downloader.storage import AioFolderWriter, AioPdfWriter, AioWriter, AioZipWriter
@@ -122,11 +122,13 @@ class WebtoonDownloader:
         fetcher = WebtoonFetcher(self.client, self.url)
         chapters = await fetcher.get_chapters_details(
             self.url,
-            self.start_chapter,
-            self.end_chapter,
-            episode_id=self.episode_id,
-            episode_id_start=self.episode_id_start,
-            episode_id_end=self.episode_id_end,
+            selection=ChapterSelection(
+                start_chapter=self.start_chapter,
+                end_chapter=self.end_chapter,
+                episode_id=self.episode_id,
+                episode_id_start=self.episode_id_start,
+                episode_id_end=self.episode_id_end,
+            ),
         )
         if not chapters:
             raise NoChaptersFoundError
