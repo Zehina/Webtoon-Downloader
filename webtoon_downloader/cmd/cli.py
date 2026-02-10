@@ -58,7 +58,13 @@ def validate_option_combinations(
     save_as: StorageType,
 ) -> None:
     """Validate mutually exclusive CLI option combinations."""
-    if latest and (start or end or episode_id or episode_id_start or episode_id_end):
+    if latest and (
+        start is not None
+        or end is not None
+        or episode_id is not None
+        or episode_id_start is not None
+        or episode_id_end is not None
+    ):
         raise CLILatestWithStartOrEndError(ctx)
 
     if separate and (save_as != "images"):
@@ -234,7 +240,6 @@ def cli(
         enable_console_logging=debug,
     )
 
-    loop = asyncio.get_event_loop()
     if not url:
         console.print(
             '[red]A Webtoon URL of the form [green]"https://www.webtoons.com/.../list?title_no=??"[/] of is required.'
@@ -285,7 +290,8 @@ def cli(
         proxy=proxy,
     )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     async def _shutdown() -> None:
         """Cancel remaining tasks and stop the loop *quietly*."""
@@ -330,6 +336,8 @@ def cli(
             finally:
                 log.info("Shutting down logger")
                 webtoon_downloader.logger.shutdown()
+                loop.close()
+                asyncio.set_event_loop(None)
 
 
 def run() -> None:

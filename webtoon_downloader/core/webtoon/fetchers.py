@@ -22,6 +22,13 @@ from webtoon_downloader.core.webtoon.models import ChapterInfo
 
 log = logging.getLogger(__name__)
 
+ERR_CHAPTER_SELECTION_MIN = "{name} must be >= 1"
+ERR_CHAPTER_SELECTION_RANGE = "start_chapter cannot be greater than end_chapter"
+ERR_EPISODE_SELECTION_RANGE = "episode_id_start cannot be greater than episode_id_end"
+ERR_EPISODE_EXCLUSIVE = "episode_id cannot be combined with episode_id_start/episode_id_end"
+ERR_CHAPTER_EPISODE_EXCLUSIVE = "chapter index filters cannot be combined with episode-id filters"
+ERR_LATEST_EXCLUSIVE = "latest selection cannot be combined with other chapter filters"
+
 
 @dataclass(frozen=True)
 class ChapterSelection:
@@ -33,9 +40,53 @@ class ChapterSelection:
     episode_id_start: int | None = None
     episode_id_end: int | None = None
 
+    def __post_init__(self) -> None:
+        for value_name, value in (
+            ("start_chapter", self.start_chapter),
+            ("end_chapter", self.end_chapter),
+            ("episode_id", self.episode_id),
+            ("episode_id_start", self.episode_id_start),
+            ("episode_id_end", self.episode_id_end),
+        ):
+            if isinstance(value, int) and value < 1:
+                raise ValueError(ERR_CHAPTER_SELECTION_MIN.format(name=value_name))
+
+        if (
+            self.start_chapter is not None
+            and isinstance(self.end_chapter, int)
+            and self.start_chapter > self.end_chapter
+        ):
+            raise ValueError(ERR_CHAPTER_SELECTION_RANGE)
+
+        if (
+            self.episode_id_start is not None
+            and self.episode_id_end is not None
+            and self.episode_id_start > self.episode_id_end
+        ):
+            raise ValueError(ERR_EPISODE_SELECTION_RANGE)
+
+        if self.episode_id is not None and (self.episode_id_start is not None or self.episode_id_end is not None):
+            raise ValueError(ERR_EPISODE_EXCLUSIVE)
+
+        has_episode_filters = (
+            self.episode_id is not None
+            or self.episode_id_start is not None
+            or self.episode_id_end is not None
+        )
+        has_chapter_range = self.start_chapter is not None or isinstance(self.end_chapter, int)
+
+        if has_chapter_range and has_episode_filters:
+            raise ValueError(ERR_CHAPTER_EPISODE_EXCLUSIVE)
+
+        if self.end_chapter == "latest" and (self.start_chapter is not None or has_episode_filters):
+            raise ValueError(ERR_LATEST_EXCLUSIVE)
+
 
 def apply_chapter_filters(chapter_details: list[ChapterInfo], selection: ChapterSelection) -> list[ChapterInfo]:
     """Apply chapter index and episode-id filters in a single place."""
+    if not chapter_details:
+        return []
+
     if selection.end_chapter == "latest":
         return [chapter_details[-1]]
 

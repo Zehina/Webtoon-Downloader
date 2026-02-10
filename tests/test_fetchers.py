@@ -6,6 +6,16 @@ from webtoon_downloader.core.webtoon.fetchers import ChapterSelection, WebtoonFe
 SERIES_URL = "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95"
 
 
+def test_chapter_selection_rejects_mixed_chapter_and_episode_filters() -> None:
+    with pytest.raises(ValueError):
+        ChapterSelection(start_chapter=2, episode_id=650)
+
+
+def test_chapter_selection_rejects_latest_with_other_filters() -> None:
+    with pytest.raises(ValueError):
+        ChapterSelection(end_chapter="latest", episode_id=650)
+
+
 @pytest.mark.asyncio
 async def test_get_chapters_details_episode_id_filter_e2e() -> None:
     async with WebtoonHttpClient() as client:
@@ -42,20 +52,15 @@ async def test_get_chapters_details_episode_id_range_filter_e2e() -> None:
 
 
 @pytest.mark.asyncio
-async def test_get_chapters_details_applies_chapter_slice_before_episode_filter_e2e() -> None:
+async def test_get_chapters_details_chapter_range_filter_e2e() -> None:
     async with WebtoonHttpClient() as client:
         fetcher = WebtoonFetcher(client, SERIES_URL)
-        all_chapters = await fetcher.get_chapters_details(SERIES_URL)
-
-        assert len(all_chapters) >= 3
-        first = all_chapters[0]
-
         filtered = await fetcher.get_chapters_details(
             SERIES_URL,
-            selection=ChapterSelection(start_chapter=2, end_chapter=2, episode_id=first.data_episode_no),
+            selection=ChapterSelection(start_chapter=2, end_chapter=3),
         )
 
-    assert filtered == []
+    assert [chapter.number for chapter in filtered] == [2, 3]
 
 
 @pytest.mark.asyncio
