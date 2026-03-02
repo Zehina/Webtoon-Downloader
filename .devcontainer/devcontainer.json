@@ -4,9 +4,7 @@
     "name": "webtoon-downloader",
     // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
     "image": "mcr.microsoft.com/devcontainers/python:1-3.11-bullseye",
-    "features": {
-        "ghcr.io/devcontainers-contrib/features/poetry:2": {}
-    },
+    "features": {},
 
     // Use 'postCreateCommand' to run commands after the container is created.
     "postCreateCommand": "./.devcontainer/postCreateCommand.sh",
