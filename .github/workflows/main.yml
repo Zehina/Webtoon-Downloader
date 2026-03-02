@@ -45,6 +45,8 @@ jobs:
 
       - name: Set up the environment
         uses: ./.github/actions/setup-uv-env
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Test with tox
         run: uv run tox -e ${{ matrix.toxenv }}
