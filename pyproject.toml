@@ -43,6 +43,7 @@ dev = [
     "mypy>=1.5.1,<2",
     "pre-commit>=3.4.0,<4",
     "tox>=4.11.1,<5",
+    "tox-uv>=1.33.0,<2",
     "pytest-asyncio>=0.23.2,<0.24",
     "types-beautifulsoup4>=4.12.0.7,<5",
     "types-pillow>=10.1.0.2,<11",
