@@ -1,6 +1,6 @@
 [project]
 name = "webtoon_downloader"
-version = "2.2.1"
+version = "2.2.2"
 description = "A fast scrapper ⚡ for downloading comics from the Webtoons platform."
 authors = [{ name = "Ali Taibi", email = "zehinadev@gmail.com" }]
 requires-python = ">=3.10,<4.0"
