@@ -6,6 +6,16 @@ import rich_click as click
 
 from webtoon_downloader.core.exceptions import DownloadError, RateLimitedError
 
+ERR_START_END_RANGE = "Start chapter cannot be greater than end chapter."
+ERR_EPISODE_ID_START_END_RANGE = "Start episode_id cannot be greater than end episode_id."
+ERR_LATEST_WITH_RANGES = (
+    "Options --start/--end/--episode-id/--episode-id-start/--episode-id-end and --latest cannot be used together."
+)
+ERR_EPISODE_ID_WITH_RANGE = "Option --episode-id cannot be used with --episode-id-start/--episode-id-end."
+ERR_CHAPTER_WITH_EPISODE_ID_RANGE = (
+    "Options --start/--end cannot be used with --episode-id/--episode-id-start/--episode-id-end."
+)
+
 
 class CLIInvalidStartAndEndRangeError(click.UsageError):
     """
@@ -16,8 +26,14 @@ class CLIInvalidStartAndEndRangeError(click.UsageError):
     """
 
     def __init__(self, ctx: click.Context | None = None) -> None:
-        message = "Start chapter cannot be greater than end chapter."
-        super().__init__(message, ctx)
+        super().__init__(ERR_START_END_RANGE, ctx)
+
+
+class CLIInvalidEpisodeIDStartAndEndRangeError(click.UsageError):
+    """Raised when --episode-id-start is greater than --episode-id-end."""
+
+    def __init__(self, ctx: click.Context | None = None) -> None:
+        super().__init__(ERR_EPISODE_ID_START_END_RANGE, ctx)
 
 
 class CLILatestWithStartOrEndError(click.UsageError):
@@ -31,8 +47,21 @@ class CLILatestWithStartOrEndError(click.UsageError):
     """
 
     def __init__(self, ctx: click.Context | None = None) -> None:
-        message = "Options --start/--end and --latest cannot be used together."
-        super().__init__(message, ctx)
+        super().__init__(ERR_LATEST_WITH_RANGES, ctx)
+
+
+class CLIEpisodeIDWithEpisodeIDRangeError(click.UsageError):
+    """Raised when --episode-id is used with --episode-id-start/--episode-id-end."""
+
+    def __init__(self, ctx: click.Context | None = None) -> None:
+        super().__init__(ERR_EPISODE_ID_WITH_RANGE, ctx)
+
+
+class CLIChapterRangeWithEpisodeIDRangeError(click.UsageError):
+    """Raised when chapter range flags are mixed with episode-id flags."""
+
+    def __init__(self, ctx: click.Context | None = None) -> None:
+        super().__init__(ERR_CHAPTER_WITH_EPISODE_ID_RANGE, ctx)
 
 
 class CLISeparateOptionWithNonImageSaveAsError(click.UsageError):

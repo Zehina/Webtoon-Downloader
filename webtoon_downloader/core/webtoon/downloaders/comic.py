@@ -20,7 +20,7 @@ from webtoon_downloader.core.webtoon.downloaders.options import StorageType, Web
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
 from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor
-from webtoon_downloader.core.webtoon.fetchers import WebtoonFetcher
+from webtoon_downloader.core.webtoon.fetchers import ChapterSelection, WebtoonFetcher
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 from webtoon_downloader.core.webtoon.namer import NonSeparateFileNameGenerator, SeparateFileNameGenerator
 from webtoon_downloader.storage import AioFolderWriter, AioPdfWriter, AioWriter, AioZipWriter
@@ -57,6 +57,9 @@ class WebtoonDownloader:
 
     start_chapter: int | None = None
     end_chapter: int | None | Literal["latest"] = None
+    episode_id: int | None = None
+    episode_id_start: int | None = None
+    episode_id_end: int | None = None
     directory: str | PathLike[str] | None = None
     exporter: DataExporter | None = None
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
@@ -117,7 +120,16 @@ class WebtoonDownloader:
             A list of `ChapterInfo` objects containing information about each chapter.
         """
         fetcher = WebtoonFetcher(self.client, self.url)
-        chapters = await fetcher.get_chapters_details(self.url, self.start_chapter, self.end_chapter)
+        chapters = await fetcher.get_chapters_details(
+            self.url,
+            selection=ChapterSelection(
+                start_chapter=self.start_chapter,
+                end_chapter=self.end_chapter,
+                episode_id=self.episode_id,
+                episode_id_start=self.episode_id_start,
+                episode_id_end=self.episode_id_end,
+            ),
+        )
         if not chapters:
             raise NoChaptersFoundError
 
@@ -218,6 +230,9 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         directory=opts.destination,
         start_chapter=start,
         end_chapter=end,
+        episode_id=opts.episode_id,
+        episode_id_start=opts.episode_id_start,
+        episode_id_end=opts.episode_id_end,
         chapter_downloader=chapter_downloader,
         storage_type=opts.save_as,
         exporter=exporter,

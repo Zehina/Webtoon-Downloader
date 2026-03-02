@@ -11,7 +11,10 @@ import rich_click as click
 import webtoon_downloader.cmd.exceptions
 import webtoon_downloader.logger
 from webtoon_downloader.cmd.exceptions import (
+    CLIChapterRangeWithEpisodeIDRangeError,
+    CLIEpisodeIDWithEpisodeIDRangeError,
     CLIInvalidConcurrentCountError,
+    CLIInvalidEpisodeIDStartAndEndRangeError,
     CLIInvalidQualityError,
     CLIInvalidStartAndEndRangeError,
     CLILatestWithStartOrEndError,
@@ -42,6 +45,46 @@ class GracefulExit(SystemExit):
     code = 1
 
 
+def validate_option_combinations(
+    ctx: click.Context,
+    *,
+    start: int | None,
+    end: int | None,
+    episode_id: int | None,
+    episode_id_start: int | None,
+    episode_id_end: int | None,
+    latest: bool,
+    separate: bool,
+    save_as: StorageType,
+) -> None:
+    """Validate mutually exclusive CLI option combinations."""
+    if latest and (
+        start is not None
+        or end is not None
+        or episode_id is not None
+        or episode_id_start is not None
+        or episode_id_end is not None
+    ):
+        raise CLILatestWithStartOrEndError(ctx)
+
+    if separate and (save_as != "images"):
+        raise CLISeparateOptionWithNonImageSaveAsError(ctx)
+
+    if start is not None and end is not None and start > end:
+        raise CLIInvalidStartAndEndRangeError(ctx)
+
+    if episode_id_start is not None and episode_id_end is not None and episode_id_start > episode_id_end:
+        raise CLIInvalidEpisodeIDStartAndEndRangeError(ctx)
+
+    if episode_id is not None and (episode_id_start is not None or episode_id_end is not None):
+        raise CLIEpisodeIDWithEpisodeIDRangeError(ctx)
+
+    if (start is not None or end is not None) and (
+        episode_id is not None or episode_id_start is not None or episode_id_end is not None
+    ):
+        raise CLIChapterRangeWithEpisodeIDRangeError(ctx)
+
+
 def validate_concurrent_count(ctx: Any, param: Any, value: int | None) -> int | None:  # pylint: disable=unused-argument
     if value is not None and value <= 0:
         raise CLIInvalidConcurrentCountError(value)
@@ -68,6 +111,9 @@ def validate_quality(ctx: Any, param: Any, value: int) -> int:
     help="Start chapter",
 )
 @click.option("--end", "-e", type=int, help="End chapter")
+@click.option("--episode-id", type=int, help="Download a specific WEBTOON episode_id")
+@click.option("--episode-id-start", type=int, help="Start WEBTOON episode_id (inclusive)")
+@click.option("--episode-id-end", type=int, help="End WEBTOON episode_id (inclusive)")
 @click.option(
     "--latest",
     "-l",
@@ -166,11 +212,14 @@ def validate_quality(ctx: Any, param: Any, value: int) -> int:
     help="Image quality (must be between 40 and 100, divisible by 10)",
 )
 @click.option("--debug", type=bool, is_flag=True, help="Enable debug mode")
-def cli(  # noqa: C901
+def cli(
     ctx: click.Context,
     url: str,
     start: int,
     end: int,
+    episode_id: int,
+    episode_id_start: int,
+    episode_id_end: int,
     latest: bool,
     out: str,
     image_format: ImageFormat,
@@ -191,18 +240,22 @@ def cli(  # noqa: C901
         enable_console_logging=debug,
     )
 
-    loop = asyncio.get_event_loop()
     if not url:
         console.print(
             '[red]A Webtoon URL of the form [green]"https://www.webtoons.com/.../list?title_no=??"[/] of is required.'
         )
         ctx.exit(1)
-    if latest and (start or end):
-        raise CLILatestWithStartOrEndError(ctx)
-    if separate and (save_as != "images"):
-        raise CLISeparateOptionWithNonImageSaveAsError(ctx)
-    if start is not None and end is not None and start > end:
-        raise CLIInvalidStartAndEndRangeError(ctx)
+    validate_option_combinations(
+        ctx,
+        start=start,
+        end=end,
+        episode_id=episode_id,
+        episode_id_start=episode_id_start,
+        episode_id_end=episode_id_end,
+        latest=latest,
+        separate=separate,
+        save_as=save_as,
+    )
 
     progress = init_progress(console)
     series_download_task = progress.add_task(
@@ -219,6 +272,9 @@ def cli(  # noqa: C901
         start=start,
         end=end,
         latest=latest,
+        episode_id=episode_id,
+        episode_id_start=episode_id_start,
+        episode_id_end=episode_id_end,
         destination=out,
         export_metadata=export_metadata,
         exporter_format=export_format,
@@ -234,7 +290,8 @@ def cli(  # noqa: C901
         proxy=proxy,
     )
 
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     async def _shutdown() -> None:
         """Cancel remaining tasks and stop the loop *quietly*."""
@@ -279,6 +336,8 @@ def cli(  # noqa: C901
             finally:
                 log.info("Shutting down logger")
                 webtoon_downloader.logger.shutdown()
+                loop.close()
+                asyncio.set_event_loop(None)
 
 
 def run() -> None:

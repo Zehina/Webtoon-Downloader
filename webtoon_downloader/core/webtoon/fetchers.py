@@ -22,6 +22,87 @@ from webtoon_downloader.core.webtoon.models import ChapterInfo
 
 log = logging.getLogger(__name__)
 
+ERR_CHAPTER_SELECTION_MIN = "{name} must be >= 1"
+ERR_CHAPTER_SELECTION_RANGE = "start_chapter cannot be greater than end_chapter"
+ERR_EPISODE_SELECTION_RANGE = "episode_id_start cannot be greater than episode_id_end"
+ERR_EPISODE_EXCLUSIVE = "episode_id cannot be combined with episode_id_start/episode_id_end"
+ERR_CHAPTER_EPISODE_EXCLUSIVE = "chapter index filters cannot be combined with episode-id filters"
+ERR_LATEST_EXCLUSIVE = "latest selection cannot be combined with other chapter filters"
+
+
+@dataclass(frozen=True)
+class ChapterSelection:
+    """Represents a single, explicit chapter-selection mode."""
+
+    start_chapter: int | None = None
+    end_chapter: int | None | Literal["latest"] = None
+    episode_id: int | None = None
+    episode_id_start: int | None = None
+    episode_id_end: int | None = None
+
+    def __post_init__(self) -> None:
+        for value_name, value in (
+            ("start_chapter", self.start_chapter),
+            ("end_chapter", self.end_chapter),
+            ("episode_id", self.episode_id),
+            ("episode_id_start", self.episode_id_start),
+            ("episode_id_end", self.episode_id_end),
+        ):
+            if isinstance(value, int) and value < 1:
+                raise ValueError(ERR_CHAPTER_SELECTION_MIN.format(name=value_name))
+
+        if (
+            self.start_chapter is not None
+            and isinstance(self.end_chapter, int)
+            and self.start_chapter > self.end_chapter
+        ):
+            raise ValueError(ERR_CHAPTER_SELECTION_RANGE)
+
+        if (
+            self.episode_id_start is not None
+            and self.episode_id_end is not None
+            and self.episode_id_start > self.episode_id_end
+        ):
+            raise ValueError(ERR_EPISODE_SELECTION_RANGE)
+
+        if self.episode_id is not None and (self.episode_id_start is not None or self.episode_id_end is not None):
+            raise ValueError(ERR_EPISODE_EXCLUSIVE)
+
+        has_episode_filters = (
+            self.episode_id is not None
+            or self.episode_id_start is not None
+            or self.episode_id_end is not None
+        )
+        has_chapter_range = self.start_chapter is not None or isinstance(self.end_chapter, int)
+
+        if has_chapter_range and has_episode_filters:
+            raise ValueError(ERR_CHAPTER_EPISODE_EXCLUSIVE)
+
+        if self.end_chapter == "latest" and (self.start_chapter is not None or has_episode_filters):
+            raise ValueError(ERR_LATEST_EXCLUSIVE)
+
+
+def apply_chapter_filters(chapter_details: list[ChapterInfo], selection: ChapterSelection) -> list[ChapterInfo]:
+    """Apply chapter index and episode-id filters in a single place."""
+    if not chapter_details:
+        return []
+
+    if selection.end_chapter == "latest":
+        return [chapter_details[-1]]
+
+    filtered = chapter_details[int(selection.start_chapter or 1) - 1 : selection.end_chapter]
+
+    if selection.episode_id is not None:
+        return [chapter for chapter in filtered if chapter.data_episode_no == selection.episode_id]
+
+    if selection.episode_id_start is not None:
+        filtered = [chapter for chapter in filtered if chapter.data_episode_no >= selection.episode_id_start]
+
+    if selection.episode_id_end is not None:
+        filtered = [chapter for chapter in filtered if chapter.data_episode_no <= selection.episode_id_end]
+
+    return filtered
+
 
 class WebtoonDomain(str, Enum):
     """valid webtoon subdomains"""
@@ -131,7 +212,9 @@ class WebtoonFetcher:
         return f"https://m.webtoons.com/api/v1/{self._get_webtoon_type(series_url)}/{series_id}"
 
     async def get_chapters_details(
-        self, series_url: str, start_chapter: int | None = None, end_chapter: int | None | Literal["latest"] = None
+        self,
+        series_url: str,
+        selection: ChapterSelection | None = None,
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -140,14 +223,10 @@ class WebtoonFetcher:
 
         Args:
             series_url      : The URL of the Webtoon series from which to fetch chapter details.
-            start_chapter   : The starting chapter number from which to begin fetching details.
-            end_chapter     : chapter number up to which details should be fetched.
+            selection       : Chapter selection criteria. Defaults to all chapters.
 
         Returns:
             A list of ChapterInfo objects containing details for each chapter.
-            If end_chapter None, fetches all chapters up to the last available.
-            If end_chapter is set to latest and start_chapter is None then returns the last chapter
-            If both `start_chapter` and `end_chapter` are None, returns all chapters.
         """
         mobile_url = self._convert_url_domain(series_url, WebtoonDomain.MOBILE)
         webtoon_api = WebtoonAPI(self.client)
@@ -175,7 +254,4 @@ class WebtoonFetcher:
             )
             chapter_details.append(chapter_info)
 
-        if end_chapter == "latest":
-            return [chapter_details[-1]]
-
-        return chapter_details[int(start_chapter or 1) - 1 : end_chapter]
+        return apply_chapter_filters(chapter_details=chapter_details, selection=selection or ChapterSelection())
