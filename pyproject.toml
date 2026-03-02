@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "webtoon_downloader"
-version = "2.2.0"
+version = "2.2.1"
 description = "A fast scrapper ⚡ for downloading comics from the Webtoons platform."
 authors = ["Ali Taibi <zehinadev@gmail.com>"]
 repository = "https://github.com/Zehina/webtoon-downloader"
