@@ -57,7 +57,7 @@ def validate_quality(ctx: Any, param: Any, value: int) -> int:
 
 
 @click.command()
-@click.version_option()
+@click.version_option(package_name="webtoon_downloader")
 @click.pass_context
 @click.rich_config(help_config=help_config)
 @click.argument("url", required=True, type=str)
