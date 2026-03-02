@@ -1,6 +1,12 @@
 name: "setup-uv-env"
 description: "Composite action to setup the Python and uv environment."
 
+inputs:
+  python-version:
+    required: false
+    description: "The Python version to use"
+    default: "3.13"
+
 runs:
   using: "composite"
   steps:
@@ -9,10 +15,10 @@ runs:
       with:
         enable-cache: true
 
-    - name: Set up python from pyproject
+    - name: Set up python
       uses: actions/setup-python@v6
       with:
-        python-version-file: "pyproject.toml"
+        python-version: ${{ inputs.python-version }}
 
     - name: Install dependencies
       run: uv sync --locked --all-groups --all-extras
