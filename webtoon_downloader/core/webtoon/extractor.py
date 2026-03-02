@@ -136,27 +136,44 @@ class WebtoonViewerPageExtractor:
         return self._notes
 
     def get_img_urls(self) -> list[str]:
-        """Extracts image URLs from the chapter."""
+        """Extracts image URLs from the chapter (supports mature-content overlays)."""
         if hasattr(self, "_img_urls"):
             log.debug("Found cached image URLs in extractor")
             return self._img_urls
 
-        _nav = self._soup.find("div", class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b"))
-        if not _nav:
-            raise ElementNotFoundError("_img_viewer_area")
+        urls: list[str] = []
 
-        if not isinstance(_nav, Tag):
-            log.debug("img container is not a tag object but a %s", type(_nav))
-            return []
+        # Detect mature-content overlay (visual-only gate)
+        if self._soup.select_one("div.ly_wrap.fixed.on div.ly_adult"):
+            log.debug("Mature content overlay detected; attempting fallback image extraction")
+        
+        # 1️⃣ Preferred: normal viewer container (non-mature pages)
+        _nav = self._soup.find(
+            "div",
+            class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b")
+        )
+        if isinstance(_nav, Tag):
+            imgs = _nav.find_all("img", attrs={"data-url": True})
+            urls.extend(img["data-url"] for img in imgs)
 
-        _tags = _nav.find_all("img")
-        if not _tags:
-            log.debug("img tags not found in img container")
-            raise ElementNotFoundError("img")
+        # 2️⃣ Fallback: mature-content pages (overlay present, images still in DOM)
+        if not urls:
+            log.debug("Viewer container missing; falling back to global img[data-url] scan")
+            imgs = self._soup.find_all("img", attrs={"data-url": True})
+            urls.extend(img["data-url"] for img in imgs)
 
-        self._img_urls = [tag["data-url"] for tag in _tags]
+        if not urls:
+            raise ElementNotFoundError("img[data-url]")
 
-        # Attempt to remove Webtoons compression by removing "?type=q90" at the end of URLs
-        self._img_urls = [url.replace("?type=q90", "") for url in self._img_urls]
+        # Remove WEBTOON compression flags
+        urls = [u.replace("?type=q90", "") for u in urls]
+
+        # De-duplicate while preserving order
+        seen = set()
+        self._img_urls = []
+        for u in urls:
+            if u not in seen:
+                seen.add(u)
+                self._img_urls.append(u)
 
         return self._img_urls
