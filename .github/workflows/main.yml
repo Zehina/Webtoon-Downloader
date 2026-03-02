@@ -38,6 +38,8 @@ jobs:
             toxenv: py312
           - python-version: "3.13"
             toxenv: py313
+          - python-version: "3.14"
+            toxenv: py314
       fail-fast: false
     steps:
       - name: Check out
@@ -51,9 +53,9 @@ jobs:
       - name: Test with tox
         run: uv run tox -e ${{ matrix.toxenv }}
 
-      - name: Upload coverage reports to Codecov with GitHub Action on Python 3.13
+      - name: Upload coverage reports to Codecov with GitHub Action on Python 3.14
         uses: codecov/codecov-action@v5
-        if: ${{ matrix.python-version == '3.13' }}
+        if: ${{ matrix.python-version == '3.14' }}
 
   check-docs:
     runs-on: ubuntu-latest
