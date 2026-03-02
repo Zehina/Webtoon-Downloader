@@ -52,7 +52,7 @@ jobs:
         run: uv run tox -e ${{ matrix.toxenv }}
 
       - name: Upload coverage reports to Codecov with GitHub Action on Python 3.13
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         if: ${{ matrix.python-version == '3.13' }}
 
   check-docs:
