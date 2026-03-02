@@ -66,7 +66,13 @@ Webtoon Downloader runs on **Windows**, **Linux**, and **macOS**. Requires **Pyt
 
 ### Installation
 
-Install via `pipx` (recommended):
+Install via `uv` (recommended):
+
+```bash
+uv tool install webtoon_downloader
+```
+
+Or install via `pipx`:
 
 ```bash
 pipx install webtoon_downloader
