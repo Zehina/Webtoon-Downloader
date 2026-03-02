@@ -12,15 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
-      - uses: actions/cache@v3
+      - uses: actions/cache@v5
         with:
           path: ~/.cache/pre-commit
           key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Set up the environment
-        uses: ./.github/actions/setup-poetry-env
+        uses: ./.github/actions/setup-uv-env
 
       - name: Run checks
         run: make check
@@ -29,33 +29,25 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        include:
+          - python-version: "3.10"
+            toxenv: py310
+          - python-version: "3.11"
+            toxenv: py311
+          - python-version: "3.12"
+            toxenv: py312
+          - python-version: "3.13"
+            toxenv: py313
       fail-fast: false
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
-      - name: Set up python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
-
-      - name: Load cached venv
-        uses: actions/cache@v3
-        with:
-          path: .tox
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('poetry.lock') }}
-
-      - name: Install tox
-        run: |
-          python -m pip install --upgrade pip
-          python -m pip install tox tox-gh-actions
+      - name: Set up the environment
+        uses: ./.github/actions/setup-uv-env
 
       - name: Test with tox
-        run: tox
+        run: uv run tox -e ${{ matrix.toxenv }}
 
       - name: Upload coverage reports to Codecov with GitHub Action on Python 3.13
         uses: codecov/codecov-action@v3
@@ -65,10 +57,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out
-        uses: actions/checkout@v3
+        uses: actions/checkout@v6
 
       - name: Set up the environment
-        uses: ./.github/actions/setup-poetry-env
+        uses: ./.github/actions/setup-uv-env
 
       - name: Check if documentation can be built
-        run: poetry run mkdocs build -s
+        run: uv run mkdocs build -s
