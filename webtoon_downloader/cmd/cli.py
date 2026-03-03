@@ -191,7 +191,6 @@ def cli(  # noqa: C901
         enable_console_logging=debug,
     )
 
-    loop = asyncio.get_event_loop()
     if not url:
         console.print(
             '[red]A Webtoon URL of the form [green]"https://www.webtoons.com/.../list?title_no=??"[/] of is required.'
@@ -234,7 +233,10 @@ def cli(  # noqa: C901
         proxy=proxy,
     )
 
-    loop = asyncio.get_event_loop()
+    # Python 3.14 no longer creates an implicit event loop for the main thread.
+    # Create and register one explicitly so CLI behavior is consistent across versions.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
 
     async def _shutdown() -> None:
         """Cancel remaining tasks and stop the loop *quietly*."""
@@ -279,6 +281,8 @@ def cli(  # noqa: C901
             finally:
                 log.info("Shutting down logger")
                 webtoon_downloader.logger.shutdown()
+                asyncio.set_event_loop(None)
+                loop.close()
 
 
 def run() -> None:
