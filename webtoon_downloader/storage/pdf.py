@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from io import BytesIO
 from os import PathLike
 from pathlib import Path
+from types import TracebackType
 from typing import IO, AsyncIterator, NamedTuple
 
 import fitz
@@ -57,8 +58,13 @@ class AioPdfWriter:
 
     @stream_error_handler
     async def __aenter__(self) -> AioPdfWriter:
-        if isinstance(self.container, (str, PathLike)):
-            Path(self.container).parent.mkdir(parents=True, exist_ok=True)
+        container = self.container
+        if isinstance(container, str):
+            Path(container).parent.mkdir(parents=True, exist_ok=True)
+        elif isinstance(container, PathLike):
+            fspath = container.__fspath__()
+            if isinstance(fspath, str):
+                Path(fspath).parent.mkdir(parents=True, exist_ok=True)
         self._pages_data = []
         self._doc = fitz.open()
         return self
@@ -100,7 +106,12 @@ class AioPdfWriter:
         return written
 
     @stream_error_handler
-    async def __aexit__(self, *_: tuple) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         """
         Completes the PDF creation process by adding pages sorted by item name.
         """

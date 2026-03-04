@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import TracebackType
 from typing import AsyncIterator, Protocol, runtime_checkable
 
 from .exceptions import StreamWriteError
@@ -38,7 +39,12 @@ class AioWriter(Protocol):
             An instance of the class implementing the AioWriter protocol.
         """
 
-    async def __aexit__(self, *_: tuple) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         """
         Asynchronous context manager exit, for cleaning up resources.
         """
