@@ -18,7 +18,7 @@ from webtoon_downloader.cmd.exceptions import (
     CLISeparateOptionWithNonImageSaveAsError,
 )
 from webtoon_downloader.cmd.progress import ChapterProgressManager, init_progress
-from webtoon_downloader.core.exceptions import WebtoonDownloadError
+from webtoon_downloader.core.exceptions import DownloadError, WebtoonDownloadError
 from webtoon_downloader.core.webtoon.client import RetryStrategy
 from webtoon_downloader.core.webtoon.downloaders import comic
 from webtoon_downloader.core.webtoon.downloaders.options import (
@@ -54,6 +54,16 @@ def validate_quality(ctx: Any, param: Any, value: int) -> int:
         raise CLIInvalidQualityError(value)
 
     return value
+
+
+def _unwrap_error_chain(exc: Exception) -> list[str]:
+    """Return the exception type chain for compact user-facing error summaries."""
+    chain = [exc.__class__.__name__]
+    current: Exception | None = exc
+    while isinstance(current, DownloadError) and current.cause is not None:
+        current = current.cause
+        chain.append(current.__class__.__name__)
+    return chain
 
 
 @click.command()
@@ -209,6 +219,7 @@ def cli(  # noqa: C901
         type="Chapters",
         type_color="grey93",
         number_format=">02d",
+        rendered_completed="00",
         rendered_total="??",
     )
 
@@ -262,16 +273,18 @@ def cli(  # noqa: C901
         shutdown_task.add_done_callback(exit_tasks.discard)
 
     with progress:
-        main_task = loop.create_task(comic.download_webtoon(opts))
         signal.signal(signal.SIGINT, _raise_graceful_exit)
         signal.signal(signal.SIGTERM, _raise_graceful_exit)
         progress.print("Press [bold]Ctrl+C[/] to stop the download early...")
         with contextlib.suppress(GracefulExit, asyncio.CancelledError):
             try:
+                main_task = loop.create_task(comic.download_webtoon(opts))
                 loop.run_until_complete(main_task)
                 progress.print("Download complete!")
             except WebtoonDownloadError as exc:
                 console.print(f"[red][bold]Download error:[/bold] {exc}[/]")
+                error_chain = " -> ".join(_unwrap_error_chain(exc))
+                console.print(f"[red]Failure type: {error_chain}[/]")
                 if webtoon_downloader.cmd.exceptions.is_root_cause_rate_limit_error(exc.cause):
                     console.print(
                         "[red][bold]Oh no! We got rate limited 😔 ! Please consider using a proxy or use lower --concurrent-pages/-concurrent-chapters values[/bold][/]"
