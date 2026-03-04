@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from functools import cached_property
 
-from bs4 import BeautifulSoup, Tag
-from furl import furl
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 log = logging.getLogger(__name__)
 
@@ -35,128 +35,113 @@ def _ensure_beautiful_soup(html: str | BeautifulSoup) -> BeautifulSoup:
 
 @dataclass(frozen=True)
 class WebtoonMainPageExtractor:
-    """Extractor for the main page of a Webtoon. The results are cached for faster lookup
-
-    Attributes:
-        html: HTML content of the Webtoon main page. (ex: https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95)
-    """
+    """Extractor for a webtoon series main page."""
 
     html: str | BeautifulSoup
 
-    _soup: BeautifulSoup = field(init=False)
-    _title: str = field(init=False)
-    _summary: str = field(init=False)
-    _viewer_url: str = field(init=False)
+    @cached_property
+    def soup(self) -> BeautifulSoup:
+        return _ensure_beautiful_soup(self.html)
 
-    def __post_init__(self) -> None:
-        object.__setattr__(self, "_soup", _ensure_beautiful_soup(self.html))
-
-    def get_series_title(self) -> str:
-        """Extracts the full title series."""
-        if hasattr(self, "_title"):
-            return self._title
-
-        _tag = self._soup.find(class_="subj")
-        if not _tag:
+    @cached_property
+    def series_title(self) -> str:
+        tag = self.soup.find(class_="subj")
+        if not tag:
             raise ElementNotFoundError("subj")
+        return tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
 
-        title = _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
-        object.__setattr__(self, "_title", title)
-        return title
-
-    def get_series_summary(self) -> str:
-        """Extracts the series summary."""
-        if hasattr(self, "_summary"):
-            return self._summary
-        _tag = self._soup.find(class_="summary")
-        if not _tag:
+    @cached_property
+    def series_summary(self) -> str:
+        tag = self.soup.find(class_="summary")
+        if not tag:
             raise ElementNotFoundError("summary")
+        return tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
 
-        summary = _tag.get_text(separator=" ").replace("\n", "").replace("\t", "")
-        object.__setattr__(self, "_summary", summary)
-        return summary
+    @cached_property
+    def author(self) -> str | None:
+        meta_author = self._get_author_from_meta()
+        if meta_author:
+            return meta_author
 
-    def get_chapter_viewer_url(self) -> str:
-        """Extracts the URL of the webtoon chapter reader."""
-        if hasattr(self, "_viewer_url"):
-            return self._viewer_url
-        _tag = self._soup.select_one("#_btnEpisode")
-        if not _tag:
-            raise ElementNotFoundError("_btnEpisode")
+        log.debug("Author meta tag not found; trying author_area fallback")
+        area_author = self._get_author_from_author_area()
+        if area_author:
+            return area_author
 
-        _href = _tag["href"]
-        if isinstance(_href, list):
-            _href = _href[0]
+        log.debug("Author not found in known selectors")
+        return None
 
-        viewer_url = str(furl(_href).remove(args=["episode_no"]))
-        object.__setattr__(self, "_viewer_url", viewer_url)
-        return viewer_url
+    @cached_property
+    def genre(self) -> str | None:
+        genre_tag = self.soup.find("h2", class_=re.compile(r"\bgenre\b"))
+        if not isinstance(genre_tag, Tag):
+            log.debug("Genre not found in known selectors")
+            return None
+
+        genre = genre_tag.get_text().strip()
+        if not genre:
+            log.debug("Genre not found in known selectors")
+            return None
+
+        return genre
+
+    def _get_author_from_meta(self) -> str | None:
+        meta_tag = self.soup.find("meta", attrs={"property": "com-linewebtoon:webtoon:author"})
+        if not isinstance(meta_tag, Tag):
+            return None
+
+        content = meta_tag.get("content")
+        if not isinstance(content, str):
+            return None
+
+        value = content.strip()
+        return value or None
+
+    def _get_author_from_author_area(self) -> str | None:
+        author_area = self.soup.find("div", class_="author_area")
+        if not isinstance(author_area, Tag):
+            return None
+
+        for child in author_area.children:
+            if not isinstance(child, NavigableString):
+                continue
+            value = str(child).strip()
+            if value:
+                return value
+
+        return None
 
 
 @dataclass
 class WebtoonViewerPageExtractor:
-    """Extractor for a viewer page of a Webtoon.
-
-    Attributes:
-        html: HTML content of a Webtoon viewer page. (ex: https://www.webtoons.com/en/fantasy/tower-of-god/season-3-ep-173/viewer?title_no=95&episode_no=591)
-    """
+    """Extractor for a webtoon chapter viewer page."""
 
     html: str | BeautifulSoup
 
-    _soup: BeautifulSoup = field(init=False)
-    _title: str = field(init=False)
-    _notes: str = field(init=False)
-    _img_urls: list[str] = field(init=False)
+    @cached_property
+    def soup(self) -> BeautifulSoup:
+        return _ensure_beautiful_soup(self.html)
 
-    def __post_init__(self) -> None:
-        self._soup = _ensure_beautiful_soup(self.html)
-
-    def get_chapter_title(self) -> str:
-        """Extracts the chapter title."""
-        if hasattr(self, "_title"):
-            return self._title
-
-        _tag = self._soup.find("h1")
-        if not _tag:
-            raise ElementNotFoundError("title_h1")
-
-        self._title = _tag.get_text().strip()
-        return self._title
-
-    def get_chapter_notes(self) -> str:
-        """Extracts the chapter author notes if it exists. Returns an empty string otherwise"""
-        if hasattr(self, "_notes"):
-            return self._notes
-
-        _tag = self._soup.find(class_="author_text")
-        if not _tag:
+    @cached_property
+    def chapter_notes(self) -> str:
+        tag = self.soup.find(class_="author_text")
+        if not tag:
             return ""
+        return tag.get_text().strip().replace("\r\n", "\n")
 
-        self._notes = _tag.get_text().strip().replace("\r\n", "\n")
-        return self._notes
-
-    def get_img_urls(self) -> list[str]:
-        """Extracts image URLs from the chapter."""
-        if hasattr(self, "_img_urls"):
-            log.debug("Found cached image URLs in extractor")
-            return self._img_urls
-
-        _nav = self._soup.find("div", class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b"))
-        if not _nav:
+    @cached_property
+    def img_urls(self) -> list[str]:
+        nav = self.soup.find("div", class_=re.compile(r"\bviewer_img\b.*\b_img_viewer_area\b"))
+        if not nav:
             raise ElementNotFoundError("_img_viewer_area")
 
-        if not isinstance(_nav, Tag):
-            log.debug("img container is not a tag object but a %s", type(_nav))
+        if not isinstance(nav, Tag):
+            log.debug("img container is not a tag object but a %s", type(nav))
             return []
 
-        _tags = _nav.find_all("img")
-        if not _tags:
+        tags = nav.find_all("img")
+        if not tags:
             log.debug("img tags not found in img container")
             raise ElementNotFoundError("img")
 
-        self._img_urls = [tag["data-url"] for tag in _tags]
-
-        # Attempt to remove Webtoons compression by removing "?type=q90" at the end of URLs
-        self._img_urls = [url.replace("?type=q90", "") for url in self._img_urls]
-
-        return self._img_urls
+        return [tag["data-url"].replace("?type=q90", "") for tag in tags]

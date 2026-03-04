@@ -5,12 +5,14 @@ import logging
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
+from typing import AsyncIterator
 
 import httpx
 
 from webtoon_downloader.core.downloaders.image import ImageDownloader, ImageDownloadResult
 from webtoon_downloader.core.exceptions import ChapterDownloadError, RateLimitedError
 from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
+from webtoon_downloader.core.webtoon.comicinfo import ComicInfoMetadata, SeriesMetadata, build_comicinfo_xml
 from webtoon_downloader.core.webtoon.downloaders.callbacks import ChapterProgressCallback, ChapterProgressType
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
@@ -18,6 +20,7 @@ from webtoon_downloader.core.webtoon.extractor import WebtoonViewerPageExtractor
 from webtoon_downloader.core.webtoon.models import ChapterInfo, PageInfo
 from webtoon_downloader.core.webtoon.namer import FileNameGenerator
 from webtoon_downloader.storage import AioWriter
+from webtoon_downloader.storage.exceptions import StreamWriteError
 
 log = logging.getLogger(__name__)
 
@@ -50,7 +53,12 @@ class ChapterDownloader:
         self._semaphore = asyncio.Semaphore(self.concurrent_downloads_limit)
 
     async def run(
-        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter, quality: int = 100
+        self,
+        chapter_info: ChapterInfo,
+        directory: str | PathLike[str],
+        storage: AioWriter,
+        quality: int = 100,
+        series_metadata: SeriesMetadata | None = None,
     ) -> list[DownloadResult]:
         """
         Asynchronously downloads a single chapter by downaloding all its pages.
@@ -69,14 +77,19 @@ class ChapterDownloader:
         """
         try:
             async with self._semaphore:
-                return await self._run(chapter_info, directory, storage, quality)
+                return await self._run(chapter_info, directory, storage, quality, series_metadata=series_metadata)
         except ChapterDownloadError:
             raise
         except Exception as exc:
             raise ChapterDownloadError(chapter_info.viewer_url, exc, chapter_info=chapter_info) from exc
 
     async def _run(
-        self, chapter_info: ChapterInfo, directory: str | PathLike[str], storage: AioWriter, quality: int = 100
+        self,
+        chapter_info: ChapterInfo,
+        directory: str | PathLike[str],
+        storage: AioWriter,
+        quality: int = 100,
+        series_metadata: SeriesMetadata | None = None,
     ) -> list[DownloadResult]:
         """Internal method to handle the download logic for a Webtoon chapter."""
         tasks: list[asyncio.Task] = []
@@ -100,7 +113,7 @@ class ChapterDownloader:
             'Fetched: "%s" from chapter "%s" => %s', chapter_info.viewer_url, chapter_info.title, resp.status_code
         )
         extractor = WebtoonViewerPageExtractor(resp.text)
-        img_urls = extractor.get_img_urls()
+        img_urls = extractor.img_urls
         if not img_urls:
             raise ChapterDownloadError(
                 chapter_info.viewer_url,
@@ -121,6 +134,8 @@ class ChapterDownloader:
                 name = str(chapter_directory / self.file_name_generator.get_page_filename(page))
                 tasks.append(self._create_task(chapter_info, url, name, storage, quality))
             res = await asyncio.gather(*tasks, return_exceptions=False)
+            if series_metadata:
+                await self._write_comicinfo(storage, chapter_info, series_metadata, extractor, len(img_urls))
 
         await self._report_progress(chapter_info, "Completed")
         return res
@@ -201,6 +216,41 @@ class ChapterDownloader:
         await self.exporter.add_chapter_details(
             chapter=chapter_info,
             title_path=directory / self.file_name_generator.get_title_filename(chapter_info),
-            notes_path=directory / self.file_name_generator.get_title_filename(chapter_info),
-            notes=extractor.get_chapter_notes(),
+            notes_path=directory / self.file_name_generator.get_notes_filename(chapter_info),
+            notes=extractor.chapter_notes,
         )
+
+    async def _write_comicinfo(
+        self,
+        storage: AioWriter,
+        chapter_info: ChapterInfo,
+        series_metadata: SeriesMetadata,
+        extractor: WebtoonViewerPageExtractor,
+        page_count: int,
+    ) -> None:
+        try:
+            payload = ComicInfoMetadata(
+                series=series_metadata.title,
+                title=chapter_info.title,
+                number=str(chapter_info.number),
+                count=chapter_info.total_chapters,
+                summary=series_metadata.summary,
+                notes=extractor.chapter_notes,
+                writer=series_metadata.author,
+                genre=series_metadata.genre,
+                language_iso=series_metadata.language,
+                page_count=page_count,
+                manga="No",
+                web=series_metadata.url,
+            )
+            xml_bytes = build_comicinfo_xml(payload)
+
+            async def _stream() -> AsyncIterator[bytes]:
+                yield xml_bytes
+
+            await storage.write(_stream(), "ComicInfo.xml")
+        except (StreamWriteError, TypeError, ValueError, RuntimeError, OSError):
+            log.warning("ComicInfo: failed to write ComicInfo.xml to CBZ archive", exc_info=True)
+        except Exception:
+            # Keep downloads resilient even for unexpected metadata serialization errors.
+            log.warning("ComicInfo: unexpected error writing ComicInfo.xml", exc_info=True)

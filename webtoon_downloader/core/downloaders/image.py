@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
-from typing import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Awaitable, Callable, Protocol
 
 import httpx
 
@@ -34,16 +34,23 @@ class ImageDownloadResult:
     size: int
 
 
-@dataclass
-class ImageDownloader:
-    client: WebtoonHttpClient
-    concurent_downloads_limit: int
-    transformers: list[AioImageTransformer] = field(default_factory=list)
-    progress_callback: ImageProgressCallback | None = None
+class ImageDownloader(Protocol):
+    async def run(self, url: str, target: str, storage: AioWriter, quality: int | None = 100) -> ImageDownloadResult:
+        """Download an image and write it to storage."""
 
-    _semaphore: asyncio.Semaphore = field(init=False)
 
-    def __post_init__(self) -> None:
+class HttpImageDownloader:
+    def __init__(
+        self,
+        client: WebtoonHttpClient,
+        concurent_downloads_limit: int,
+        transformers: list[AioImageTransformer] | None = None,
+        progress_callback: ImageProgressCallback | None = None,
+    ):
+        self.client = client
+        self.concurent_downloads_limit = concurent_downloads_limit
+        self.transformers = transformers if transformers is not None else []
+        self.progress_callback = progress_callback
         self._semaphore = asyncio.Semaphore(self.concurent_downloads_limit)
 
     async def run(self, url: str, target: str, storage: AioWriter, quality: int | None = 100) -> ImageDownloadResult:
