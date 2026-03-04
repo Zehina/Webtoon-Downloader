@@ -78,7 +78,7 @@ def init_progress(console: Console) -> Progress:
         HumanReadableSpeedColumn(),
         "•",
         TextColumn(
-            "[bold cyan2]{task.completed:>02d}[/]/[bold cyan2]{task.fields[rendered_total]}[/]",
+            "[bold cyan2]{task.fields[rendered_completed]}[/]/[bold cyan2]{task.fields[rendered_total]}[/]",
             justify="left",
             style="cyan2",
         ),
@@ -123,7 +123,13 @@ class ChapterProgressManager:
             task        : The ID of the task in the progress bar being updated.
         """
         total_chapters = len(chapters)
-        self.progress.update(self.series_download_task, total=total_chapters, rendered_total=f"{total_chapters:02}")
+        rendered_total, rendered_completed = self._rendered_page_counter(total_chapters, 0)
+        self.progress.update(
+            self.series_download_task,
+            total=total_chapters,
+            rendered_total=rendered_total,
+            rendered_completed=rendered_completed,
+        )
 
     async def advance_progress(
         self,
@@ -142,7 +148,7 @@ class ChapterProgressManager:
         if progress_type == "Start":
             self._add_task(chapter_info)
         elif progress_type == "ChapterInfoFetched" and extractor:
-            total = len(extractor.get_img_urls())
+            total = len(extractor.img_urls)
             self._update_task(chapter_info, total)
         elif progress_type == "PageCompleted":
             self._start_task(chapter_info)
@@ -158,6 +164,7 @@ class ChapterProgressManager:
             type_color="grey85",
             number_format=">02d",
             start=False,
+            rendered_completed="00",
             rendered_total="??",
         )
         self._task_ids[chapter_info.number] = ChapterTask(task_id, False)
@@ -172,16 +179,45 @@ class ChapterProgressManager:
         """Advance the progress of a chapter's task by one step."""
         task = self._task_ids[chapter_info.number]
         self.progress.update(task.task, advance=1)
+        progress_task = self._get_task(task.task)
+        total = int(progress_task.total or 0)
+        completed = int(progress_task.completed)
+        _, rendered_completed = self._rendered_page_counter(total, completed)
+        self.progress.update(task.task, rendered_completed=rendered_completed)
 
     def _update_task(self, chapter_info: ChapterInfo, total: int) -> None:
         """Update the progress task of a chapter with the total number of pages."""
         task = self._task_ids[chapter_info.number]
-        self.progress.update(task.task, total=total, rendered_total=total)
+        rendered_total, rendered_completed = self._rendered_page_counter(total, 0)
+        self.progress.update(
+            task.task, total=total, rendered_total=rendered_total, rendered_completed=rendered_completed
+        )
+
+    def _rendered_page_counter(self, total: int, completed: int) -> tuple[str, str]:
+        """Render a chapter page counter with dynamic zero-padding."""
+        width = max(2, len(str(total)))
+        return f"{total:0{width}d}", f"{completed:0{width}d}"
 
     async def _complete_task(self, chapter_info: ChapterInfo) -> None:
         """Complete the progress task for a chapter and remove it from tracking."""
         task = self._task_ids[chapter_info.number]
         self.progress.update(self.series_download_task, advance=1)
+        series_task = self._get_task(self.series_download_task)
+        series_total = int(series_task.total or 0)
+        series_completed = int(series_task.completed)
+        rendered_total, rendered_completed = self._rendered_page_counter(series_total, series_completed)
+        self.progress.update(
+            self.series_download_task,
+            rendered_total=rendered_total,
+            rendered_completed=rendered_completed,
+        )
         await asyncio.sleep(0.5)
         self.progress.remove_task(task.task)
         del self._task_ids[chapter_info.number]
+
+    def _get_task(self, task_id: TaskID) -> Task:
+        """Find a Rich task by its id, independent of internal list ordering."""
+        for task in self.progress.tasks:
+            if task.id == task_id:
+                return task
+        raise KeyError(task_id)
