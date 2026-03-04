@@ -7,6 +7,7 @@ import zipfile
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
+from types import TracebackType
 from typing import AsyncIterator, Literal, Union
 
 import aiofiles
@@ -88,7 +89,12 @@ class AioZipWriter:
         return written
 
     @stream_error_handler
-    async def __aexit__(self, *_: tuple) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self._zip_file.close()
 
 
@@ -160,7 +166,12 @@ class AioFileBufferedZipWriter(AioZipWriter):
             await loop.run_in_executor(None, _write_to_zip)
 
     @stream_error_handler
-    async def __aexit__(self, *_: tuple) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         self._zip_file.close()
         # Cleanup of temporary files, if any were not handled already
         for temp_file in self._temp_files:

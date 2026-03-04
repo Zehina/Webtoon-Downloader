@@ -4,7 +4,7 @@ import logging
 import random
 import re
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from types import TracebackType
 from typing import AsyncGenerator, Literal
 
 import httpx
@@ -46,7 +46,6 @@ WebtoonMobileURL = "https://m.webtoons.com"
 RetryStrategy = Literal["exponential", "linear", "fixed"]
 
 
-@dataclass
 class WebtoonHttpClient:
     """
     An asynchronous HTTP client configured for scrapping webtoon website.
@@ -55,12 +54,9 @@ class WebtoonHttpClient:
     and is configured with high limits for maximum connections and keep-alive connections.
     """
 
-    proxy: str | None = None
-    retry_strategy: RetryStrategy | None = None
-
-    _client: httpx.AsyncClient = field(init=False)
-
-    def __post_init__(self) -> None:
+    def __init__(self, proxy: str | None = None, retry_strategy: RetryStrategy | None = None):
+        self.proxy = proxy
+        self.retry_strategy = retry_strategy
         self._client = httpx.AsyncClient(
             limits=httpx.Limits(max_connections=200, max_keepalive_connections=200),
             http2=True,
@@ -90,8 +86,13 @@ class WebtoonHttpClient:
         await self._client.__aenter__()
         return self
 
-    async def __aexit__(self, *_: tuple) -> None:
-        await self._client.__aexit__()
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        await self._client.__aexit__(exc_type, exc, traceback)
 
     async def get(self, url: str) -> httpx.Response:
         if WebtoonMobileURL in url.lower():

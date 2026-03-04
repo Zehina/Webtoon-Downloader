@@ -92,7 +92,7 @@ class NonSeparateFileNameGenerator(FileNameGenerator):
     are stored in the same directory.
     """
 
-    def get_chapter_directory(self, _: ChapterInfo) -> Path:  # type ignore
+    def get_chapter_directory(self, chapter_info: ChapterInfo) -> Path:
         """
         Returns the root directory for storing pages when they are not separated by chapters.
         """

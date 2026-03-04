@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
+from types import TracebackType
 from typing import AsyncIterator
 
 import aiofiles
@@ -56,5 +57,10 @@ class AioFolderWriter:
         return written
 
     @stream_error_handler
-    async def __aexit__(self, *_: tuple) -> None:
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
         pass
