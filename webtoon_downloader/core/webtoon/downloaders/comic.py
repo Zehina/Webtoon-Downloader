@@ -11,15 +11,16 @@ from typing import Literal
 from furl import furl
 
 from webtoon_downloader.core import file as fileutil
-from webtoon_downloader.core.downloaders.image import ImageDownloader
+from webtoon_downloader.core.downloaders.image import HttpImageDownloader
 from webtoon_downloader.core.exceptions import NoChaptersFoundError, WebtoonDownloadError
 from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
+from webtoon_downloader.core.webtoon.comicinfo import SeriesMetadata
 from webtoon_downloader.core.webtoon.downloaders.callbacks import OnWebtoonFetchCallback
 from webtoon_downloader.core.webtoon.downloaders.chapter import ChapterDownloader
 from webtoon_downloader.core.webtoon.downloaders.options import StorageType, WebtoonDownloadOptions
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
-from webtoon_downloader.core.webtoon.extractor import WebtoonMainPageExtractor
+from webtoon_downloader.core.webtoon.extractor import ElementNotFoundError, WebtoonMainPageExtractor
 from webtoon_downloader.core.webtoon.fetchers import WebtoonFetcher
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 from webtoon_downloader.core.webtoon.namer import NonSeparateFileNameGenerator, SeparateFileNameGenerator
@@ -89,17 +90,21 @@ class WebtoonDownloader:
         chapter_list = await self._get_chapters()
         resp = await self.client.get(self.url)
         extractor = WebtoonMainPageExtractor(resp.text)
+        series_title = self._resolve_series_title(extractor, chapter_list)
 
         if self.directory:
             self._directory = Path(self.directory)
         else:
-            self._directory = Path(fileutil.slugify_name(extractor.get_series_title()))
+            self._directory = Path(fileutil.slugify_name(series_title))
 
         await self._export_data(extractor)
+        series_metadata: SeriesMetadata | None = None
+        if self.storage_type == "cbz":
+            series_metadata = self._build_series_metadata(extractor, chapter_list)
 
         tasks = []
         for chapter_info in chapter_list:
-            task = self._create_task(chapter_info, self.quality)
+            task = self._create_task(chapter_info, self.quality, series_metadata=series_metadata)
             tasks.append(task)
 
         results = await asyncio.gather(*tasks, return_exceptions=False)
@@ -126,7 +131,12 @@ class WebtoonDownloader:
 
         return chapters
 
-    def _create_task(self, chapter_info: ChapterInfo, quality: int = 100) -> asyncio.Task:
+    def _create_task(
+        self,
+        chapter_info: ChapterInfo,
+        quality: int = 100,
+        series_metadata: SeriesMetadata | None = None,
+    ) -> asyncio.Task:
         """
         Creates an asynchronous task for downloading a Webtoon chapter.
 
@@ -140,9 +150,58 @@ class WebtoonDownloader:
 
         async def task() -> list[DownloadResult]:
             storage = await self._get_storage(chapter_info)
-            return await self.chapter_downloader.run(chapter_info, self._directory, storage, quality)
+            return await self.chapter_downloader.run(
+                chapter_info,
+                self._directory,
+                storage,
+                quality,
+                series_metadata=series_metadata,
+            )
 
         return asyncio.create_task(task())
+
+    def _resolve_series_title(self, extractor: WebtoonMainPageExtractor, chapter_list: list[ChapterInfo]) -> str:
+        try:
+            title = extractor.series_title.strip()
+            if title:
+                return title
+        except ElementNotFoundError:
+            log.debug("Series title not found in main page extractor")
+
+        if chapter_list and chapter_list[0].series_title.strip():
+            return chapter_list[0].series_title.strip()
+
+        raise WebtoonDownloadError(self.url, cause=ValueError("Unable to determine series title"))
+
+    def _extract_language_from_url(self) -> str | None:
+        segments = furl(self.url).path.segments
+        if not segments:
+            return None
+
+        first_segment = segments[0]
+        if isinstance(first_segment, str) and len(first_segment) == 2 and first_segment.isalpha():
+            return first_segment.lower()
+        return None
+
+    def _build_series_metadata(
+        self, extractor: WebtoonMainPageExtractor, chapter_list: list[ChapterInfo]
+    ) -> SeriesMetadata:
+        title = self._resolve_series_title(extractor, chapter_list)
+
+        try:
+            summary = extractor.series_summary
+        except ElementNotFoundError:
+            summary = None
+            log.debug("ComicInfo: summary not found")
+
+        return SeriesMetadata(
+            title=title,
+            summary=summary,
+            author=extractor.author,
+            genre=extractor.genre,
+            language=self._extract_language_from_url(),
+            url=self.url,
+        )
 
     async def _get_storage(self, chapter_info: ChapterInfo) -> AioWriter:
         """
@@ -171,7 +230,7 @@ class WebtoonDownloader:
         """
         if not self.exporter:
             return
-        await self.exporter.add_series_summary(extractor.get_series_summary(), self._directory / "summary.txt")
+        await self.exporter.add_series_summary(extractor.series_summary, self._directory / "summary.txt")
 
 
 async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]:
@@ -190,7 +249,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         else NonSeparateFileNameGenerator()
     )
     webtoon_client = WebtoonHttpClient(proxy=opts.proxy, retry_strategy=opts.retry_strategy)
-    image_downloader = ImageDownloader(
+    image_downloader = HttpImageDownloader(
         client=webtoon_client,
         transformers=[AioImageFormatTransformer(opts.image_format)],
         concurent_downloads_limit=opts.concurrent_pages,
