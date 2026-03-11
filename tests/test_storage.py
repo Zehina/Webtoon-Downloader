@@ -109,6 +109,6 @@ async def test_write_raises_stream_write_error() -> None:
             await writer.write(async_iter(b"some data"), 12)
 
     with pytest.raises(StreamWriteError), tempfile.TemporaryDirectory() as dir_path:
-        # Openning a directory should cause an error
+        # Opening a directory should cause an error
         async with AioZipWriter(dir_path) as writer:
             await writer.write(async_iter(b"some data"), "test.txt")

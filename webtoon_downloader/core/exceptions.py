@@ -53,7 +53,7 @@ class ChapterDownloadError(DownloadError):
 
 @dataclass
 class WebtoonGetError(Exception):
-    """Exception raised due to a fetch error when retreiving Webtoon information"""
+    """Exception raised due to a fetch error when retrieving Webtoon information"""
 
     series_url: str
     status_code: int
@@ -81,7 +81,7 @@ class FetchError(Exception):
 
 @dataclass
 class ChapterURLFetchError(FetchError):
-    """Exception raised due to a fetch error when retreiving the chapter URL"""
+    """Exception raised due to a fetch error when retrieving the chapter URL"""
 
     def __str__(self) -> str:
         if self.msg:
@@ -92,7 +92,7 @@ class ChapterURLFetchError(FetchError):
 
 @dataclass
 class ChapterTitleFetchError(FetchError):
-    """Exception raised due to a fetch error when retreiving the chapter title"""
+    """Exception raised due to a fetch error when retrieving the chapter title"""
 
     def __str__(self) -> str:
         if self.msg:
@@ -103,7 +103,7 @@ class ChapterTitleFetchError(FetchError):
 
 @dataclass
 class ChapterDataEpisodeNumberFetchError(FetchError):
-    """Exception raised due to a fetch error when retreiving data chapter number"""
+    """Exception raised due to a fetch error when retrieving data chapter number"""
 
     def __str__(self) -> str:
         if self.msg:
@@ -125,7 +125,7 @@ class NoChaptersFoundError(FetchError):
 
 @dataclass
 class SeriesTitleFetchError(FetchError):
-    """Exception raised due to a fetch error when retreiving the series title"""
+    """Exception raised due to a fetch error when retrieving the series title"""
 
     def __str__(self) -> str:
         if self.msg:

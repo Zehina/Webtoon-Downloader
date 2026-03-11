@@ -80,7 +80,7 @@ class AioImageFormatTransformer:
         transform_needed = await self._run_in_executor(self._is_transformation_needed, bytes_io_stream)
 
         if transform_needed:
-            log.debug("Running image convertion to %s", self.target_format)
+            log.debug("Running image conversion to %s", self.target_format)
             transformed_stream = await self._run_in_executor(self._sync_transform, bytes_io_stream)
         else:
             log.debug('No transformation needed to convert to %s the target "%s"', self.target_format, target_name)
@@ -137,7 +137,7 @@ class AioImageFormatTransformer:
         return (
             # modes that include transparency
             image.mode in ("RGBA", "LA", "PA", "RGBa", "La")
-            # transparency specifed in info attribute
+            # transparency specified in info attribute
             or (image.mode in ("1", "L", "I", "P", "RGB") and "transparency" in image.info)
         )
 

@@ -22,8 +22,8 @@ from webtoon_downloader.core.exceptions import DownloadError, WebtoonDownloadErr
 from webtoon_downloader.core.webtoon.client import RetryStrategy
 from webtoon_downloader.core.webtoon.downloaders import comic
 from webtoon_downloader.core.webtoon.downloaders.options import (
-    DEFAULT_CONCURENT_CHAPTER_DOWNLOADS,
-    DEFAULT_CONCURENT_IMAGE_DOWNLOADS,
+    DEFAULT_CONCURRENT_CHAPTER_DOWNLOADS,
+    DEFAULT_CONCURRENT_IMAGE_DOWNLOADS,
     StorageType,
     WebtoonDownloadOptions,
 )
@@ -144,14 +144,14 @@ def _unwrap_error_chain(exc: Exception) -> list[str]:
 @click.option(
     "--concurrent-chapters",
     type=int,
-    default=DEFAULT_CONCURENT_CHAPTER_DOWNLOADS,
+    default=DEFAULT_CONCURRENT_CHAPTER_DOWNLOADS,
     callback=validate_concurrent_count,
     help="Number of workers for concurrent chapter downloads",
 )
 @click.option(
     "--concurrent-pages",
     type=int,
-    default=DEFAULT_CONCURENT_IMAGE_DOWNLOADS,
+    default=DEFAULT_CONCURRENT_IMAGE_DOWNLOADS,
     callback=validate_concurrent_count,
     help="Number of workers for concurrent image downloads. This value is shared between all concurrent chapter downloads.",
 )

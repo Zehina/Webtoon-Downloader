@@ -101,7 +101,7 @@ class ChapterDownloader:
         except httpx.HTTPError as exc:
             cause = None
             if resp.status_code == 429:
-                cause = RateLimitedError(f"Rate limitied while fetching chapter info from {chapter_info.viewer_url}")
+                cause = RateLimitedError(f"Rate limited while fetching chapter info from {chapter_info.viewer_url}")
             raise ChapterDownloadError(
                 chapter_info.viewer_url,
                 message=f"Failed to fetch url {chapter_info.viewer_url}: status code [{resp.status_code}]",
