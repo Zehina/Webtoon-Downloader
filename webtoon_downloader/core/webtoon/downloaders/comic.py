@@ -252,7 +252,7 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
     image_downloader = HttpImageDownloader(
         client=webtoon_client,
         transformers=[AioImageFormatTransformer(opts.image_format)],
-        concurent_downloads_limit=opts.concurrent_pages,
+        concurrent_downloads_limit=opts.concurrent_pages,
     )
 
     exporter = DataExporter(opts.exporter_format) if opts.export_metadata else None

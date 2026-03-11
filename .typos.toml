@@ -1,0 +1,6 @@
+[files]
+extend-exclude = ["docs/imgs/help.svg"]
+
+[default.extend-identifiers]
+RGBa = "RGBa"
+La = "La"

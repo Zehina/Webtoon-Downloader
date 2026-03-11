@@ -33,7 +33,7 @@ class PageInfo:
 
     Attributes:
         page_number     : The page number of the chapter.
-        content_url     : The direct link to the img ressource.
+        content_url     : The direct link to the image resource.
         total_pages     : Total number of pages in the chapter.
     """
 

@@ -43,15 +43,15 @@ class HttpImageDownloader:
     def __init__(
         self,
         client: WebtoonHttpClient,
-        concurent_downloads_limit: int,
+        concurrent_downloads_limit: int,
         transformers: list[AioImageTransformer] | None = None,
         progress_callback: ImageProgressCallback | None = None,
     ):
         self.client = client
-        self.concurent_downloads_limit = concurent_downloads_limit
+        self.concurrent_downloads_limit = concurrent_downloads_limit
         self.transformers = transformers if transformers is not None else []
         self.progress_callback = progress_callback
-        self._semaphore = asyncio.Semaphore(self.concurent_downloads_limit)
+        self._semaphore = asyncio.Semaphore(self.concurrent_downloads_limit)
 
     async def run(self, url: str, target: str, storage: AioWriter, quality: int | None = 100) -> ImageDownloadResult:
         """
@@ -90,7 +90,7 @@ class HttpImageDownloader:
             except httpx.HTTPError as exc:
                 if response.status_code == 429:
                     raise ImageDownloadError(
-                        url=url, cause=RateLimitedError(f"Rate limitied while downloading image from {url}")
+                        url=url, cause=RateLimitedError(f"Rate limited while downloading image from {url}")
                     ) from exc
 
             size = 0

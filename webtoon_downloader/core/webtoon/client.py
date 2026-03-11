@@ -114,7 +114,7 @@ class WebtoonHttpClient:
             except httpx.HTTPError as exc:
                 if response.status_code == 429:
                     raise DownloadError(
-                        url=url, cause=RateLimitedError(f"Rate limitied while streaming from {url}")
+                        url=url, cause=RateLimitedError(f"Rate limited while streaming from {url}")
                     ) from exc
 
             yield response
@@ -152,7 +152,7 @@ class WebtoonHttpClient:
             except httpx.HTTPError as exc:
                 if response.status_code == 429:
                     raise ImageDownloadError(
-                        url=url, cause=RateLimitedError(f"Rate limitied while downloading image from {url}")
+                        url=url, cause=RateLimitedError(f"Rate limited while downloading image from {url}")
                     ) from exc
 
             yield response
