@@ -29,7 +29,7 @@ dependencies = [
 
 [project.urls]
 Repository = "https://github.com/Zehina/webtoon-downloader"
-Documentation = "https://Zehina.github.io/webtoon-downloader/"
+Documentation = "https://zehina.github.io/Webtoon-Downloader/"
 
 [project.scripts]
 webtoon-downloader = "webtoon_downloader.cmd.cli:run"

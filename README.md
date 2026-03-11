@@ -9,7 +9,7 @@
     ·
     <a href="https://github.com/Zehina/Webtoon-Downloader/issues">Request Feature</a>
     ·
-    <a href="https://zehina.github.io/webtoon-downloader/">View Docs</a>
+    <a href="https://zehina.github.io/Webtoon-Downloader/">View Docs</a>
   </p>
 </p>
 
@@ -77,16 +77,16 @@ Run `webtoon-downloader --help` for generated CLI help.
 
 Full docs site:
 
-- [Documentation Home](https://zehina.github.io/webtoon-downloader/)
+- [Documentation Home](https://zehina.github.io/Webtoon-Downloader/)
 
 Useful pages:
 
-- [Getting Started](https://zehina.github.io/webtoon-downloader/getting-started/)
-- [CLI Guide](https://zehina.github.io/webtoon-downloader/cli/)
-- [FAQ](https://zehina.github.io/webtoon-downloader/faq/)
-- [Architecture](https://zehina.github.io/webtoon-downloader/architecture/)
-- [Development](https://zehina.github.io/webtoon-downloader/development/)
-- [API Reference](https://zehina.github.io/webtoon-downloader/modules/)
+- [Getting Started](https://zehina.github.io/Webtoon-Downloader/getting-started/)
+- [CLI Guide](https://zehina.github.io/Webtoon-Downloader/cli/)
+- [FAQ](https://zehina.github.io/Webtoon-Downloader/faq/)
+- [Architecture](https://zehina.github.io/Webtoon-Downloader/architecture/)
+- [Development](https://zehina.github.io/Webtoon-Downloader/development/)
+- [API Reference](https://zehina.github.io/Webtoon-Downloader/modules/)
 
 Repository copies of those docs:
 
@@ -139,4 +139,4 @@ Project links:
 
 - [Repository](https://github.com/Zehina/Webtoon-Downloader)
 - [Issues](https://github.com/Zehina/Webtoon-Downloader/issues)
-- [Docs Site](https://zehina.github.io/webtoon-downloader/)
+- [Docs Site](https://zehina.github.io/Webtoon-Downloader/)
