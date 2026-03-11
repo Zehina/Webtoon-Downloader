@@ -4,8 +4,8 @@
 
   <h2 align="center">Webtoon Downloader</h2>
 
-  <p align="cen">
-    A simple blazing fast tool for downloading chapters of any releases hosted on the webtoons website.⚡
+  <p align="center">
+    A fast CLI for downloading chapters from Webtoons. ⚡📚
     <br />
     <br />
     <a href="https://github.com/Zehina/Webtoon-Downloader/issues">Report Bug</a>
@@ -14,9 +14,8 @@
   </p>
 </p>
 
-[![Release](https://img.shields.io/github/v/release/Zehina/webtoon-downloader)](https://img.shields.io/github/v/release/Zehina/webtoon-downloader)
-[![Build status](https://img.shields.io/github/actions/workflow/status/Zehina/webtoon-downloader/main.yml?branch=main)](https://github.com/Zehina/webtoon-downloader/actions/workflows/main.yml?query=branch%3Amain)
-[![codecov](https://codecov.io/gh/Zehina/webtoon-downloader/branch/main/graph/badge.svg)](https://codecov.io/gh/Zehina/webtoon-downloader)
+[![Release](https://img.shields.io/github/v/release/Zehina/webtoon-downloader)](https://github.com/Zehina/Webtoon-Downloader/releases)
+[![Build status](https://img.shields.io/github/actions/workflow/status/Zehina/webtoon-downloader/main.yml?branch=master)](https://github.com/Zehina/webtoon-downloader/actions/workflows/main.yml?query=branch%3Amaster)
 [![Commit activity](https://img.shields.io/github/commit-activity/m/Zehina/webtoon-downloader)](https://img.shields.io/github/commit-activity/m/Zehina/webtoon-downloader)
 [![License](https://img.shields.io/github/license/Zehina/webtoon-downloader)](https://img.shields.io/github/license/Zehina/webtoon-downloader)
 
@@ -37,6 +36,7 @@
       </ul>
     </li>
     <li><a href="#usage">Usage</a></li>
+    <li><a href="#faq">FAQ</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
@@ -44,27 +44,27 @@
   </ol>
 </details>
 
-## Supported Sites
+## Supported Sites 🌐
 
 - [https://www.webtoons.com/](https://www.webtoons.com/)
 
-## Disclaimer
+## Disclaimer ⚠️
 
-This tool is intended for personal use and educational purposes only. By using it, you agree that you are solely responsible for how you use the software. I am not liable for any misuse, abuse, or violation of terms of service of the websites involved.
+This tool is intended for personal and educational use only. You are responsible for how you use it, including compliance with the terms of service of the websites involved.
 
-## Getting Started
+## Getting Started 🚀
 
-To get a local copy up and running follow these simple steps.
+Install the CLI, grab a series URL, and start downloading.
 
 <p align="center">
   <img src="https://github.com/Zehina/Webtoon-Downloader/blob/master/docs/imgs/help.png?raw=true">
 </p>
 
-### Compatibility
+### Compatibility 🖥️
 
 Webtoon Downloader runs on **Windows**, **Linux**, and **macOS**. Requires **Python 3.10+**.
 
-### Installation
+### Installation 📦
 
 Install via `uv` (recommended):
 
@@ -80,25 +80,31 @@ pipx install webtoon_downloader
 
 ---
 
-## Usage
+## Usage 🛠️
 
-> Run `webtoon-downloader --help` for full options.
+Pass a Webtoons series URL in the form:
 
-### Basic Examples
+```bash
+webtoon-downloader "https://www.webtoons.com/en/.../list?title_no=..."
+```
 
-- Download **all chapters** of a series:
+Run `webtoon-downloader --help` to see the full CLI help text.
+
+### Basic Examples ✨
+
+- Download all chapters:
 
   ```bash
   webtoon-downloader "https://www.webtoons.com/en/.../list?title_no=..."
   ```
 
-- Download from **chapter 10 to the end**:
+- Download from chapter 10 to the end:
 
   ```bash
   webtoon-downloader [url] --start 10
   ```
 
-- Download up to **chapter 150**:
+- Download through chapter 150:
 
   ```bash
   webtoon-downloader [url] --end 150
@@ -116,100 +122,128 @@ pipx install webtoon_downloader
   webtoon-downloader [url] --latest
   ```
 
-### Customization
+### Output And Storage 💾
 
-#### Rate Limiting & Stability
-
-Downloading a large number of chapters in quick succession can trigger rate limits from Webtoons' servers. If you experience timeouts or missing content, you can mitigate this using the following options:
-
-- **Retry strategy**: determines how retries are handled when a request fails. By default, the tool uses `exponential` backoff.
+- Save chapters as images, `zip`, `cbz`, or `pdf`:
 
   ```bash
-  webtoon-downloader [url] --retry-strategy exponential
+  webtoon-downloader [url] --save-as cbz
   ```
 
-  Available values: `exponential`, `linear`, `fixed`
-
-- **Concurrency settings**: tune how many workers download in parallel. By default:
-
-  - `--concurrent-chapters` = `6`
-  - `--concurrent-pages` = `120`
-
-  Reduce these values if you hit rate limits:
+- Store downloads under a custom parent directory:
 
   ```bash
-  webtoon-downloader [url] --concurrent-chapters 2 --concurrent-pages 5
+  webtoon-downloader [url] --out ./downloads
   ```
 
-- **Proxy support**: if you're still rate limited, you can configure the downloader to use a proxy (e.g., local proxy pool or SOCKS proxy).
-
-  ```bash
-  webtoon-downloader [url] --proxy http://127.0.0.1:7890
-  ```
-
-If you continue to experience issues, experiment with different combinations of retry strategy and concurrency, or use a rotating proxy setup.
-
-### Other Options
-
-- Change image format (e.g., png, jpg):
-
-  ```bash
-  webtoon-downloader [url] --image-format png
-  ```
-
-- Set output folder:
-
-By default, the downloaded chapters will be stored under the current working directory with the folder name \[series_title].
-
-Example:
-
-```
-Tower_of_God
-    ├── 150_001.jpg
-    ├── 150_002.jpg
-    ├── 150_003.jpg
-    └── ...
-```
-
-Otherwise, use `--out` to specify a custom directory:
-
-```bash
-webtoon-downloader [url] --out ./my_folder
-```
-
-- Save chapters into **separate folders** corresponding to each chapter:
+- Save each chapter in its own folder:
 
   ```bash
   webtoon-downloader [url] --separate
   ```
 
-  For example, downloading Tower of God, Chapter 150 to 152 would result in:
+  `--separate` is only valid when `--save-as images` is used.
 
-  ```
-  Tower_of_God
-      ├── 150
-      │   ├── 150_001.jpg
-      │   ├── 150_002.jpg
-      │   └── ...
-      ├── 151
-      │   ├── 151_001.jpg
-      │   └── ...
-      └── 152
-          ├── 152_001.jpg
-          └── ...
+- Change the output image format:
+
+  ```bash
+  webtoon-downloader [url] --image-format png
   ```
 
-- Export summary, chapter titles, and author notes:
+### Metadata Export 📝
+
+- Export series and chapter metadata:
+
+  ```bash
+  webtoon-downloader [url] --export-metadata
+  ```
+
+- Choose the export format:
+
+  ```bash
+  webtoon-downloader [url] --export-metadata --export-format all
+  ```
+
+  Supported values: `json`, `text`, `all`.
+
+### Common Command Examples 🎯
+
+- Download to a specific folder and keep chapters as separate image folders:
+
+  ```bash
+  webtoon-downloader [url] --out ./downloads --separate
+  ```
+
+- Save each chapter as a CBZ archive:
+
+  ```bash
+  webtoon-downloader [url] --save-as cbz
+  ```
+
+- Export metadata alongside the download:
 
   ```bash
   webtoon-downloader [url] --export-metadata --export-format json
   ```
 
-- Change storage format (e.g., zip, cbz, pdf):
+- Use a proxy and lower concurrency to reduce rate limiting:
 
   ```bash
-  webtoon-downloader [url] --save-as cbz
+  webtoon-downloader [url] --proxy http://127.0.0.1:7890 --concurrent-chapters 2 --concurrent-pages 5
   ```
+
+- Disable retries completely:
+
+  ```bash
+  webtoon-downloader [url] --retry-strategy none
+  ```
+
+- Enable debug logging for troubleshooting:
+
+  ```bash
+  webtoon-downloader [url] --debug
+  ```
+
+### Networking And Reliability 🌐
+
+Downloading a large number of chapters in a short time can trigger rate limits or slow responses from Webtoons. These flags are the main controls for keeping things stable:
+
+- Retry failed requests with a configurable strategy:
+
+  ```bash
+  webtoon-downloader [url] --retry-strategy exponential
+  ```
+
+  Supported values: `exponential`, `linear`, `fixed`, `none`.
+
+- Lower concurrency if you hit rate limits:
+
+  ```bash
+  webtoon-downloader [url] --concurrent-chapters 2 --concurrent-pages 5
+  ```
+
+  Current defaults:
+
+  - `--concurrent-chapters`: `6`
+  - `--concurrent-pages`: `120`
+
+- Use a proxy for requests:
+
+  ```bash
+  webtoon-downloader [url] --proxy http://127.0.0.1:7890
+  ```
+
+### Image Quality 🖼️
+
+- Download smaller images by lowering the requested quality:
+
+  ```bash
+  webtoon-downloader [url] --quality 50
+  ```
+
+  `--quality` must be between `40` and `100`, in steps of `10`.
+
+### Debugging 🐞
 
 - Enable debug logging:
 
@@ -217,39 +251,118 @@ webtoon-downloader [url] --out ./my_folder
   webtoon-downloader [url] --debug
   ```
 
-- Use a proxy server:
+### Output Example 📂
 
-  ```bash
-  webtoon-downloader [url] --proxy http://127.0.0.1:7890
-  ```
+By default, downloads are stored in the current working directory under a folder named after the series title.
 
-- Set retry strategy for failed requests (exponential, linear, fixed, none):
+Example layout for `--save-as images`:
 
-  ```bash
-  webtoon-downloader [url] --retry-strategy exponential
-  ```
+```text
+Tower_of_God
+├── 150_001.jpg
+├── 150_002.jpg
+├── 150_003.jpg
+└── ...
+```
 
-  n.b. `none` will disable retries, so use with caution.
+With `--separate`, the structure becomes:
 
-- Control concurrency to avoid rate limits:
+```text
+Tower_of_God
+├── 150
+│   ├── 150_001.jpg
+│   ├── 150_002.jpg
+│   └── ...
+├── 151
+│   ├── 151_001.jpg
+│   └── ...
+└── 152
+    ├── 152_001.jpg
+    └── ...
+```
 
-  ```bash
-  webtoon-downloader [url] --concurrent-chapters 2 --concurrent-pages 5
-  ```
+### CLI Reference 📚
 
-- Download smaller images by specifying a quality:
+Current options exposed by the CLI:
 
-  ```bash
-  webtoon-downloader [url] --quality 50
-  ```
-
-  n.b. The quality setting is a percentage of the original image quality (40-100). Only multiple of 10.
+- `--start`, `-s`: start downloading at a specific chapter number.
+- `--end`, `-e`: stop downloading at a specific chapter number.
+- `--latest`, `-l`: download only the latest chapter.
+- `--export-metadata`, `-em`: export series summary, chapter names, and author notes.
+- `--export-format`, `-ef`: choose `json`, `text`, or `all` for metadata export output.
+- `--image-format`, `-f`: choose `jpg` or `png` for downloaded images.
+- `--out`, `-o`: set the parent download directory.
+- `--save-as`, `-sa`: choose `images`, `zip`, `cbz`, or `pdf`.
+- `--separate`: place each chapter in its own folder when saving as images.
+- `--concurrent-chapters`: set the chapter download worker count.
+- `--concurrent-pages`: set the image download worker count.
+- `--proxy`: route requests through an HTTP proxy.
+- `--retry-strategy`: choose `exponential`, `linear`, `fixed`, or `none`.
+- `--quality`: request image quality from `40` to `100`, in steps of `10`.
+- `--debug`: enable debug logging.
+- `--version`: print the installed CLI version.
+- `--help`: show the generated help text.
 
 ---
 
-## Contributing
+## FAQ 🙋
 
-Any contributions you make are **greatly appreciated**.
+### Why do I get rate limited, timeouts, or incomplete downloads? 😵
+
+This usually comes from Webtoons or its image CDN slowing down or rejecting bursts of requests. The downloader cannot bypass remote rate limits on its own.
+
+Try:
+
+- lowering `--concurrent-chapters` and `--concurrent-pages`
+- keeping `--retry-strategy` enabled
+- using `--proxy` if your network or region is being throttled
+- retrying later if Webtoons is unstable
+
+This has shown up repeatedly in issue reports such as slow image downloads and recurring request failures.
+
+### Can this download Daily Pass or app-only chapters? 🔒
+
+No, not reliably. Chapters that are only exposed through the official app or gated behind Daily Pass are outside the normal website flow this project targets.
+
+This is a platform limitation, not just a missing flag.
+
+### Why does a series suddenly stop working even though it used to work? 🧩
+
+Webtoons changes its HTML, viewer structure, and localized page layouts from time to time. When that happens, scraping logic can break until the project is updated.
+
+If a series fails with parsing errors such as missing elements or missing titles, check the issue tracker first and open a new bug report with the failing URL and `--debug` output if needed.
+
+### Why does the displayed chapter number not match `episode_no` in the URL? 🔢
+
+Webtoons sometimes exposes a URL episode number that differs from the chapter numbering shown in the series UI. The downloader currently follows the chapter numbering it extracts from the site, not arbitrary RSS or URL numbering.
+
+### Why does `webtoon-downloader` or `pip` say `command not found`? 🛤️
+
+That is usually an installation or PATH problem on the local machine, not a downloader bug.
+
+Typical fixes:
+
+- install with `uv tool install webtoon_downloader` or `pipx install webtoon_downloader`
+- reopen your terminal after installation
+- make sure the tool install directory is on your PATH
+- verify with `webtoon-downloader --version`
+
+### Can the project prevent every download failure automatically? 🤷
+
+No. Some failures are outside the project’s control:
+
+- Webtoons rate limiting or temporary CDN instability
+- app-only or Daily Pass content
+- upstream site markup changes
+- local proxy, PATH, Python, or package installation problems
+
+The goal is to handle common failures well, but some classes of issues still require retrying later, changing settings, or waiting for a code update.
+
+---
+
+## Contributing 🤝
+
+Contributions are welcome.
 
 1. Fork the repo
 2. Create a branch (`git checkout -b feature/new-idea`)
@@ -259,37 +372,21 @@ Any contributions you make are **greatly appreciated**.
 
 ---
 
-## License
+## License 📄
 
 Distributed under the MIT License. See `LICENSE` for more.
 
 ---
 
-## Contact
+## Contact 📬
 
 **Zehina** – [zehinadev@gmail.com](mailto:zehinadev@gmail.com)
 [Project homepage](https://github.com/Zehina/Webtoon-Downloader)
 
 ---
 
-## Built With
+## Built With 🧱
 
 - [Rich](https://github.com/Textualize/rich) — Beautiful terminal formatting
-- [Webtoons](https://www.webtoons.com/) — For the accessibility to thousands of free comics.
+- [Webtoons](https://www.webtoons.com/) — Source platform supported by this downloader.
 - Many other libraries and tools used in this project can be found in the [pyproject.toml](https://github.com/Zehina/Webtoon-Downloader/blob/master/pyproject.toml) file.
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-
-[contributors-shield]: https://img.shields.io/github/contributors/Zehina/repo.svg?style=for-the-badge
-[contributors-url]: https://github.com/Zehina/Webtoon-Downloader/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Zehina/repo.svg?style=for-the-badge
-[forks-url]: https://github.com/Zehina/Webtoon-Downloader/network/members
-[stars-shield]: https://img.shields.io/github/stars/Zehina/repo.svg?style=for-the-badge
-[stars-url]: https://github.com/Zehina/Webtoon-Downloader/stargazers
-[issues-shield]: https://img.shields.io/github/issues/Zehina/repo.svg?style=for-the-badge
-[issues-url]: https://github.com/Zehina/Webtoon-Downloader/issues
-[license-shield]: https://img.shields.io/github/license/Zehina/repo.svg?style=for-the-badge
-[license-url]: https://github.com/Zehina/Webtoon-Downloader/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/Zehina
