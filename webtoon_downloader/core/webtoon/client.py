@@ -45,6 +45,12 @@ WebtoonMobileURL = "https://m.webtoons.com"
 
 RetryStrategy = Literal["exponential", "linear", "fixed"]
 
+DEFAULT_REQUEST_TIMEOUT = httpx.Timeout(connect=15.0, read=30.0, write=30.0, pool=30.0)
+"""Default timeout used for regular Webtoon page and API requests."""
+
+IMAGE_STREAM_TIMEOUT = httpx.Timeout(connect=15.0, read=90.0, write=30.0, pool=30.0)
+"""Longer read timeout for image streams because the CDN may pause before sending body bytes."""
+
 
 class WebtoonHttpClient:
     """
@@ -63,6 +69,7 @@ class WebtoonHttpClient:
             headers=self._generate_headers(),
             follow_redirects=True,
             proxy=self.proxy,
+            timeout=DEFAULT_REQUEST_TIMEOUT,
             transport=self._build_transport(),
         )
 
@@ -134,6 +141,7 @@ class WebtoonHttpClient:
         async with self._client.stream(
             "GET",
             url,
+            timeout=IMAGE_STREAM_TIMEOUT,
             headers={
                 "referer": WebtoonURL,
                 **self._generate_headers(),
