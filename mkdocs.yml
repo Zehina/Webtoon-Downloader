@@ -1,6 +1,6 @@
 site_name: webtoon-downloader
 repo_url: https://github.com/Zehina/webtoon-downloader
-site_url: https://Zehina.github.io/webtoon-downloader
+site_url: https://zehina.github.io/Webtoon-Downloader/
 site_description: CLI downloader for saving Webtoons series as images, ZIPs, CBZs, or PDFs.
 site_author: Ali Taibi
 edit_uri: edit/master/docs/
