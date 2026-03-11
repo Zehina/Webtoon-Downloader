@@ -1,19 +1,28 @@
 site_name: webtoon-downloader
 repo_url: https://github.com/Zehina/webtoon-downloader
 site_url: https://Zehina.github.io/webtoon-downloader
-site_description: Webtoons Scraper for downloading chapters of any series hosted on the webtoons website.
+site_description: CLI downloader for saving Webtoons series as images, ZIPs, CBZs, or PDFs.
 site_author: Ali Taibi
-edit_uri: edit/main/docs/
+edit_uri: edit/master/docs/
 repo_name: Zehina/webtoon-downloader
 copyright: Maintained by <a href="https://github.com/Zehina">Zehina</a>.
 
 nav:
   - Home: index.md
-  - Modules: modules.md
+  - Getting Started: getting-started.md
+  - CLI Guide: cli.md
+  - FAQ: faq.md
+  - Architecture: architecture.md
+  - Development: development.md
+  - API Reference: modules.md
 plugins:
   - search
   - autorefs
   - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - .
 
 theme:
   name: material
