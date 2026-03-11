@@ -25,16 +25,3 @@ jobs:
         env:
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           RELEASE_VERSION: ${{ steps.vars.outputs.tag }}
-
-  deploy-docs:
-    runs-on: ubuntu-latest
-    needs: publish
-    steps:
-      - name: Check out
-        uses: actions/checkout@v6
-
-      - name: Set up the environment
-        uses: ./.github/actions/setup-uv-env
-
-      - name: Deploy documentation
-        run: uv run mkdocs gh-deploy --force
