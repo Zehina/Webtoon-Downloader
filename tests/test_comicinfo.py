@@ -3,8 +3,8 @@ from __future__ import annotations
 import io
 import xml.etree.ElementTree as ET
 import zipfile
+from collections.abc import AsyncIterator
 from pathlib import Path
-from typing import AsyncIterator
 
 import httpx
 import pytest

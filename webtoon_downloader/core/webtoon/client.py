@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 import random
 import re
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 from types import TracebackType
-from typing import AsyncGenerator, Literal
+from typing import Literal
 
 import httpx
 from furl import furl

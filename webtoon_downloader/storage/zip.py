@@ -4,14 +4,14 @@ import asyncio
 import io
 import tempfile
 import zipfile
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import AsyncIterator, Literal, Union
+from typing import Literal, TypeAlias
 
 import aiofiles
-from typing_extensions import TypeAlias
 
 from .exceptions import stream_error_handler
 
@@ -21,7 +21,7 @@ ZipWriteMode: TypeAlias = Literal["a", "w"]
 - 'a' for append (appends to an existing archive).
 """
 
-ZipContainer: TypeAlias = Union[str, PathLike, io.BytesIO]
+ZipContainer: TypeAlias = str | PathLike | io.BytesIO
 """
 Container type for Zip files
 - `str | PathLike`: Path to a file either as a string, pathlib.Path or other PathLike object

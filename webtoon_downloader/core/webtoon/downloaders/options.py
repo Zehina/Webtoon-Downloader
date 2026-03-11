@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
-from typing_extensions import TypeAlias
+from typing import Literal, TypeAlias
 
 from webtoon_downloader.core.webtoon.client import RetryStrategy
 from webtoon_downloader.core.webtoon.downloaders.callbacks import ChapterProgressCallback, OnWebtoonFetchCallback

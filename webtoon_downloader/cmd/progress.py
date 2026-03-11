@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import NamedTuple, Sequence
+from typing import NamedTuple
 
 from rich.console import Console
 from rich.progress import (

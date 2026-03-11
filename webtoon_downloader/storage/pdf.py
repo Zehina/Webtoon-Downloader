@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import io
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from io import BytesIO
 from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import IO, AsyncIterator, NamedTuple
+from typing import IO, NamedTuple
 
 import fitz
 from PIL import Image
