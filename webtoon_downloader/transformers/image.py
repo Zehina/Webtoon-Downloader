@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass, field
 from io import BytesIO
 from pathlib import Path
-from typing import Any, AsyncIterator, Callable, Literal
+from typing import Any, Literal
 
 from PIL import Image
 

@@ -49,6 +49,6 @@ async def test_image_format_transformer(original_format: str, target_format: Ima
     if original_format.upper() == target_format.upper():
         original_stream.seek(0)
         transformed_bytes_io.seek(0)
-        assert (
-            original_stream.read() == transformed_bytes_io.read()
-        ), "Transformation should be skipped for same formats"
+        assert original_stream.read() == transformed_bytes_io.read(), (
+            "Transformation should be skipped for same formats"
+        )

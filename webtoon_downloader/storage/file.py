@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
 from types import TracebackType
-from typing import AsyncIterator
 
 import aiofiles
 

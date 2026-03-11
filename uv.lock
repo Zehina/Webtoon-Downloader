@@ -1603,7 +1603,6 @@ dependencies = [
     { name = "pymupdf" },
     { name = "rich" },
     { name = "rich-click" },
-    { name = "typing-extensions" },
 ]
 
 [package.dev-dependencies]
@@ -1646,7 +1645,6 @@ requires-dist = [
     { name = "pymupdf", specifier = ">=1.27.1,<2" },
     { name = "rich", specifier = ">=13.7.0,<14" },
     { name = "rich-click", specifier = ">=1.7.2,<2" },
-    { name = "typing-extensions", specifier = ">=4.9.0,<5" },
 ]
 
 [package.metadata.requires-dev]

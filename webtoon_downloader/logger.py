@@ -6,11 +6,12 @@ import json
 import logging
 import re
 import sys
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from logging import FileHandler, Formatter, NullHandler
 from logging.handlers import QueueHandler, QueueListener
 from queue import Queue
-from typing import Mapping, Pattern, Sequence
+from re import Pattern
 
 import aiofiles
 import dacite
@@ -154,11 +155,9 @@ def setup(
         log.addHandler(NullHandler())
     else:
         queue_handler = AsyncLogger.setup(handlers)
-        rewrite_filter = LevelRewriteFilter.from_mapping(
-            {
-                "httpx*": {logging.INFO: logging.DEBUG},
-            }
-        )
+        rewrite_filter = LevelRewriteFilter.from_mapping({
+            "httpx*": {logging.INFO: logging.DEBUG},
+        })
         queue_handler.addFilter(rewrite_filter)
         log.addHandler(queue_handler)
 

@@ -4,7 +4,7 @@ import io
 import os
 import tempfile
 import zipfile
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import fitz
 import pytest

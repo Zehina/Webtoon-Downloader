@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Awaitable, Callable, Literal, Sequence, Union
-
-from typing_extensions import TypeAlias
+from collections.abc import Awaitable, Callable, Sequence
+from typing import Literal, TypeAlias
 
 from webtoon_downloader.core.webtoon.extractor import WebtoonViewerPageExtractor
 from webtoon_downloader.core.webtoon.models import ChapterInfo, PageInfo
@@ -18,7 +17,7 @@ Type of progress being reported.
 """
 
 ChapterProgressCallback: TypeAlias = Callable[
-    [ChapterInfo, ChapterProgressType, Union[WebtoonViewerPageExtractor, None]], Awaitable[None]
+    [ChapterInfo, ChapterProgressType, WebtoonViewerPageExtractor | None], Awaitable[None]
 ]
 """
 Progress callback called for each chapter download. Takes the chapter info and progress type

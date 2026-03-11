@@ -22,7 +22,6 @@ dependencies = [
     "httpx[http2]>=0.28.1,<0.29",
     "aiofiles>=25.1.0,<26",
     "pymupdf>=1.27.1,<2",
-    "typing-extensions>=4.9.0,<5",
     "rich-click>=1.7.2,<2",
     "dacite>=1.9.2,<2",
     "httpx-retries>=0.4.0,<0.5",
@@ -96,7 +95,7 @@ addopts = "-m 'not network'"
 
 
 [tool.ruff]
-target-version = "py38"
+target-version = "py310"
 line-length = 120
 fix = true
 lint.allowed-confusables = ["–"]
