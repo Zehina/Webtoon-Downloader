@@ -20,6 +20,11 @@ from webtoon_downloader.transformers.image import (
         ("JPEG", "JPEG", "RGB"),
         ("PNG", "JPEG", "P"),
         ("PNG", "PNG", "P"),
+        ("PNG", "WEBP", "RGB"),
+        ("JPEG", "WEBP", "RGB"),
+        ("WEBP", "WEBP", "RGB"),
+        ("WEBP", "PNG", "RGB"),
+        ("WEBP", "JPEG", "RGB"),
     ],
 )
 async def test_image_format_transformer(original_format: str, target_format: ImageFormat, mode: str) -> None:
