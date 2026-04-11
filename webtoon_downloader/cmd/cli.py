@@ -101,7 +101,7 @@ def _unwrap_error_chain(exc: Exception) -> list[str]:
 @click.option(
     "--image-format",
     "-f",
-    type=click.Choice(["jpg", "png"]),
+    type=click.Choice(["jpg", "png", "webp"]),
     default="jpg",
     show_default=True,
     help="Image format of downloaded images",

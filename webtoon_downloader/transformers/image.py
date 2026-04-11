@@ -12,12 +12,12 @@ from PIL import Image
 
 log = logging.getLogger(__name__)
 
-ImageFormat = Literal["PNG", "JPG", "JPEG"]
+ImageFormat = Literal["PNG", "JPG", "JPEG", "WEBP"]
 """
 Defines the permissible image formats for transformation.
 """
 
-_ValidImageFormats = Literal["PNG", "JPEG"]
+_ValidImageFormats = Literal["PNG", "JPEG", "WEBP"]
 """
 Defines the valid image formats for transformation.
 """
@@ -57,6 +57,8 @@ class AioImageFormatTransformer:
     def __post_init__(self) -> None:
         if self.target_format.upper() in ["JPG", "JPEG"]:
             self._target_format = "JPEG"  # JPG is not a valid format to check. and JPG == JPEG anyways
+        elif self.target_format.upper() == "WEBP":
+            self._target_format = "WEBP"
         else:
             self._target_format = "PNG"
 
