@@ -112,7 +112,7 @@ class DataExporter:
         if not self._write_json:
             return
 
-        data = json.dumps(self._data, sort_keys=True, indent=4)
+        data = json.dumps(self._data, sort_keys=True, indent=4, ensure_ascii=False)
         await self._aio_write(Path(directory) / "info.json", data, end="")
 
     async def _aio_write(
@@ -133,5 +133,5 @@ class DataExporter:
         """
         target = Path(target)
         target.parent.mkdir(exist_ok=True, parents=True)
-        async with aiofiles.open(target, mode=mode) as f:
+        async with aiofiles.open(target, mode=mode, encoding="utf-8") as f:
             await f.write(data + end)
