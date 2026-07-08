@@ -3,24 +3,36 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Literal
+from typing import Final, Literal, TypeAlias, cast
 
 from bs4 import BeautifulSoup, Tag
 from furl import furl
 
 from webtoon_downloader.core.exceptions import (
-    ChapterDataEpisodeNumberFetchError,
-    ChapterTitleFetchError,
-    ChapterURLFetchError,
     InvalidURL,
     SeriesTitleFetchError,
     WebtoonGetError,
 )
-from webtoon_downloader.core.webtoon.api import WebtoonAPI
+from webtoon_downloader.core.webtoon.api import (
+    REQUEST_ALL_EPISODES_PAGE_SIZE,
+    WEBTOON_LANGUAGE_CODES,
+    WEBTOON_TYPE_CANVAS,
+    WEBTOON_TYPE_ORIGINAL,
+    WebtoonAPI,
+    WebtoonLanguageCode,
+    WebtoonSeriesType,
+    build_series_api_url,
+)
 from webtoon_downloader.core.webtoon.client import WebtoonHttpClient, WebtoonURL
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 
 log = logging.getLogger(__name__)
+
+END_CHAPTER_LATEST: Final = "latest"
+"""Sentinel used internally when the caller requests only the latest episode."""
+
+EndChapter: TypeAlias = int | None | Literal["latest"]
+"""Chapter range end value accepted by downloader/fetcher APIs."""
 
 
 class WebtoonDomain(str, Enum):
@@ -81,34 +93,6 @@ class WebtoonFetcher:
 
         return int(title)
 
-    def _get_viewer_url(self, tag: Tag) -> str:
-        """Returns the viewer URL from the scrapped tag object"""
-        viewer_url_tag = tag.find("a")
-        if not isinstance(viewer_url_tag, Tag):
-            raise ChapterURLFetchError
-
-        return self._convert_url_domain(str(viewer_url_tag["href"]), target_subdomain=WebtoonDomain.STANDARD)
-
-    def _get_chapter_title(self, tag: Tag) -> str:
-        """Returns the chapter title from the scrapped tag object"""
-        chapter_details_tag = tag.find("p", class_="sub_title")
-        if not isinstance(chapter_details_tag, Tag):
-            raise ChapterTitleFetchError
-
-        chapter_details_tag = chapter_details_tag.find("span", class_="ellipsis")
-        if not isinstance(chapter_details_tag, Tag):
-            raise ChapterTitleFetchError
-
-        return chapter_details_tag.text
-
-    def _get_data_episode_num(self, tag: Tag) -> int:
-        """Returns the chapter data episode number from the scrapped tag object"""
-        data_episode_no_tag = tag["data-episode-no"]
-        if not isinstance(data_episode_no_tag, str):
-            raise ChapterDataEpisodeNumberFetchError
-
-        return int(data_episode_no_tag)
-
     def _get_series_title(self, soup: BeautifulSoup) -> str:
         """Returns the series title from the scrapped tag object"""
         # Look for the new format used in the provided HTML.
@@ -122,16 +106,30 @@ class WebtoonFetcher:
 
         return series_title_tag.text
 
-    def _get_webtoon_type(self, series_url: str) -> Literal["webtoon", "canvas"]:
-        if "canvas" in series_url:
-            return "canvas"
-        return "webtoon"
+    def _get_webtoon_type(self, series_url: str) -> WebtoonSeriesType:
+        path_segments = [segment for segment in furl(series_url).path.segments if segment]
+        return WEBTOON_TYPE_CANVAS if WEBTOON_TYPE_CANVAS in path_segments else WEBTOON_TYPE_ORIGINAL
+
+    def get_series_api_url(self, series_url: str, series_id: int) -> str:
+        """Return the mobile API URL for a Webtoon series."""
+        return build_series_api_url(self._get_webtoon_type(series_url), series_id)
 
     def _get_series_api_url(self, series_url: str, series_id: int) -> str:
-        return f"https://m.webtoons.com/api/v1/{self._get_webtoon_type(series_url)}/{series_id}"
+        return self.get_series_api_url(series_url, series_id)
+
+    def _get_reading_language_code(self, series_url: str) -> WebtoonLanguageCode | None:
+        """Return the URL language segment Webtoon's episode API expects."""
+        path_segments = [segment for segment in furl(series_url).path.segments if segment]
+        if path_segments and path_segments[0] in WEBTOON_LANGUAGE_CODES:
+            return cast("WebtoonLanguageCode", path_segments[0])
+        return None
+
+    def get_reading_language_code(self, series_url: str) -> WebtoonLanguageCode | None:
+        """Return the language segment from a Webtoon URL."""
+        return self._get_reading_language_code(series_url)
 
     async def get_chapters_details(
-        self, series_url: str, start_chapter: int | None = None, end_chapter: int | None | Literal["latest"] = None
+        self, series_url: str, start_chapter: int | None = None, end_chapter: EndChapter = None
     ) -> list[ChapterInfo]:
         """
         fetches and parses chapter details from a given Webtoon series URL.
@@ -159,8 +157,11 @@ class WebtoonFetcher:
         title_id = self._get_title_no(soup)
         log.debug("Title ID: %s", title_id)
         series_title = self._get_series_title(soup)
+
         chapter_items = await webtoon_api.get_episodes_data(
-            (self._get_series_api_url(mobile_url, title_id)), page_size=99999
+            (self._get_series_api_url(mobile_url, title_id)),
+            page_size=REQUEST_ALL_EPISODES_PAGE_SIZE,
+            reading_language_code=self._get_reading_language_code(mobile_url),
         )
 
         chapter_details: list[ChapterInfo] = []
@@ -175,7 +176,7 @@ class WebtoonFetcher:
             )
             chapter_details.append(chapter_info)
 
-        if end_chapter == "latest":
+        if end_chapter == END_CHAPTER_LATEST:
             return [chapter_details[-1]]
 
         return chapter_details[int(start_chapter or 1) - 1 : end_chapter]

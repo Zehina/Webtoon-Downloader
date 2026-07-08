@@ -33,7 +33,7 @@ def _open_zip_file(container: ZipContainer, mode: ZipWriteMode) -> zipfile.ZipFi
     """Returns a ZipFile object from the provided container type and file open mode"""
     if isinstance(container, io.BytesIO):
         return zipfile.ZipFile(container, mode=mode, compression=zipfile.ZIP_DEFLATED)
-    elif isinstance(container, (str, Path)):
+    elif isinstance(container, str | PathLike):
         container_path = Path(container)
         container_path.parent.mkdir(parents=True, exist_ok=True)
         return zipfile.ZipFile(container_path, mode=mode, compression=zipfile.ZIP_DEFLATED)
@@ -75,16 +75,15 @@ class AioZipWriter:
         Returns:
             The number of bytes written.
         """
-        data = b""
+        data = bytearray()
         written = 0
 
         async for chunk in stream:
-            data += chunk
+            data.extend(chunk)
             written += len(chunk)
 
         async with self._lock:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, self._zip_file.writestr, item_name, data)
+            self._zip_file.writestr(item_name, bytes(data))
 
         return written
 
@@ -114,7 +113,7 @@ class AioFileBufferedZipWriter(AioZipWriter):
 
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _zip_file: zipfile.ZipFile = field(init=False)
-    _temp_files: list[Path] = field(default_factory=list)
+    _temp_files: set[Path] = field(default_factory=set)
 
     @stream_error_handler
     async def __aenter__(self) -> AioFileBufferedZipWriter:
@@ -136,7 +135,7 @@ class AioFileBufferedZipWriter(AioZipWriter):
         written = 0
         with tempfile.NamedTemporaryFile(delete=False, suffix=".webtoon_downloader.tmp") as tmp:
             temp_file = Path(tmp.name)
-            self._temp_files.append(temp_file)
+            self._temp_files.add(temp_file)
 
         try:
             async with aiofiles.open(temp_file, mode="wb") as file:
@@ -146,6 +145,7 @@ class AioFileBufferedZipWriter(AioZipWriter):
             await self._add_to_zip(temp_file, item_name)
         finally:
             temp_file.unlink(missing_ok=True)
+            self._temp_files.discard(temp_file)
 
         return written
 
@@ -162,8 +162,7 @@ class AioFileBufferedZipWriter(AioZipWriter):
                 temp_file_path.unlink()
 
         async with self._lock:
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, _write_to_zip)
+            _write_to_zip()
 
     @stream_error_handler
     async def __aexit__(
