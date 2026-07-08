@@ -10,10 +10,17 @@ import httpx
 import pytest
 
 from webtoon_downloader.core.downloaders.image import ImageDownloadResult
+from webtoon_downloader.core.webtoon.api import (
+    REQUEST_ALL_EPISODES_PAGE_SIZE,
+)
 from webtoon_downloader.core.webtoon.client import WebtoonHttpClient
 from webtoon_downloader.core.webtoon.comicinfo import ComicInfoMetadata, SeriesMetadata, build_comicinfo_xml
 from webtoon_downloader.core.webtoon.downloaders.chapter import ChapterDownloader
 from webtoon_downloader.core.webtoon.downloaders.comic import WebtoonDownloader
+from webtoon_downloader.core.webtoon.fetchers import (
+    END_CHAPTER_LATEST,
+    WebtoonFetcher,
+)
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 from webtoon_downloader.core.webtoon.namer import NonSeparateFileNameGenerator
 from webtoon_downloader.storage import AioWriter, AioZipWriter
@@ -104,6 +111,105 @@ def test_build_comicinfo_xml_special_chars_and_roundtrip() -> None:
     parsed = ET.fromstring(xml)  # noqa: S314
     assert parsed.findtext("Series") == "Tom & Jerry <Classic>"
     assert parsed.findtext("Summary") == "Que désirez-vous?"
+
+
+@pytest.mark.asyncio
+async def test_canvas_chapters_use_reading_language() -> None:
+    url = "https://www.webtoons.com/en/canvas/frog-wizards-of-chana-tower/list?title_no=883187"
+    mobile_url = "https://m.webtoons.com/en/canvas/frog-wizards-of-chana-tower/list?title_no=883187"
+    api_url = (
+        "https://m.webtoons.com/api/v1/canvas/883187/episodes"
+        f"?pageSize={REQUEST_ALL_EPISODES_PAGE_SIZE}&readingLanguageCode=en"
+    )
+
+    main_html = """
+    <html><head>
+      <link rel='canonical' href='https://www.webtoons.com/en/canvas/frog-wizards-of-chana-tower/list?title_no=883187' />
+    </head><body>
+      <strong class='subject'>Frog Wizards of Chana Tower</strong>
+    </body></html>
+    """
+    episodes_json = {
+        "result": {
+            "episodeList": [
+                {
+                    "episodeNo": 1,
+                    "thumbnail": "",
+                    "episodeTitle": "First",
+                    "viewerLink": "/en/canvas/frog-wizards-of-chana-tower/first/viewer?title_no=883187&episode_no=1",
+                    "exposureDateMillis": 0,
+                    "displayUp": True,
+                }
+            ],
+        }
+    }
+
+    fetcher = WebtoonFetcher(
+        client=DummyClient({
+            mobile_url: _make_response(mobile_url, text=main_html),
+            api_url: _make_response(api_url, json=episodes_json),
+        }),
+        series_url=url,
+    )
+
+    chapters = await fetcher.get_chapters_details(url)
+
+    assert [chapter.title for chapter in chapters] == ["First"]
+    assert chapters[0].viewer_url == (
+        "https://www.webtoons.com/en/canvas/frog-wizards-of-chana-tower/first/viewer?title_no=883187&episode_no=1"
+    )
+
+
+@pytest.mark.asyncio
+async def test_canvas_latest_uses_single_episode_list_request() -> None:
+    url = "https://www.webtoons.com/en/canvas/frog-wizards-of-chana-tower/list?title_no=883187"
+    mobile_url = "https://m.webtoons.com/en/canvas/frog-wizards-of-chana-tower/list?title_no=883187"
+    api_url = (
+        "https://m.webtoons.com/api/v1/canvas/883187/episodes"
+        f"?pageSize={REQUEST_ALL_EPISODES_PAGE_SIZE}&readingLanguageCode=en"
+    )
+    main_html = """
+    <html><head>
+      <link rel='canonical' href='https://www.webtoons.com/en/canvas/frog-wizards-of-chana-tower/list?title_no=883187' />
+    </head><body>
+      <strong class='subject'>Frog Wizards of Chana Tower</strong>
+    </body></html>
+    """
+    episodes_json = {
+        "result": {
+            "episodeList": [
+                {
+                    "episodeNo": 1,
+                    "thumbnail": "",
+                    "episodeTitle": "First",
+                    "viewerLink": "/en/canvas/frog-wizards-of-chana-tower/first/viewer?title_no=883187&episode_no=1",
+                    "exposureDateMillis": 0,
+                    "displayUp": True,
+                },
+                {
+                    "episodeNo": 2,
+                    "thumbnail": "",
+                    "episodeTitle": "Second",
+                    "viewerLink": "/en/canvas/frog-wizards-of-chana-tower/second/viewer?title_no=883187&episode_no=2",
+                    "exposureDateMillis": 0,
+                    "displayUp": True,
+                },
+            ],
+        }
+    }
+    fetcher = WebtoonFetcher(
+        client=DummyClient({
+            mobile_url: _make_response(mobile_url, text=main_html),
+            api_url: _make_response(api_url, json=episodes_json),
+        }),
+        series_url=url,
+    )
+
+    chapters = await fetcher.get_chapters_details(url, end_chapter=END_CHAPTER_LATEST)
+
+    assert [chapter.title for chapter in chapters] == ["Second"]
+    assert chapters[0].number == 2
+    assert chapters[0].total_chapters == 2
 
 
 @pytest.mark.asyncio
@@ -236,7 +342,10 @@ async def test_chapter_downloader_logs_warning_if_comicinfo_write_fails(caplog: 
 async def test_webtoon_downloader_cbz_includes_series_metadata(tmp_path: Path) -> None:
     url = "https://www.webtoons.com/en/fantasy/tower-of-god/list?title_no=95"
     mobile_url = "https://m.webtoons.com/en/fantasy/tower-of-god/list?title_no=95"
-    api_url = "https://m.webtoons.com/api/v1/webtoon/95/episodes?pageSize=99999"
+    api_url = (
+        "https://m.webtoons.com/api/v1/webtoon/95/episodes"
+        f"?pageSize={REQUEST_ALL_EPISODES_PAGE_SIZE}&readingLanguageCode=en"
+    )
     viewer_url = "https://www.webtoons.com/en/fantasy/tower-of-god/ep-1/viewer?title_no=95&episode_no=1"
 
     main_html = """

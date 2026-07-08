@@ -59,13 +59,8 @@ class AioPdfWriter:
 
     @stream_error_handler
     async def __aenter__(self) -> AioPdfWriter:
-        container = self.container
-        if isinstance(container, str):
-            Path(container).parent.mkdir(parents=True, exist_ok=True)
-        elif isinstance(container, PathLike):
-            fspath = container.__fspath__()
-            if isinstance(fspath, str):
-                Path(fspath).parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(self.container, str | PathLike):
+            Path(self.container).parent.mkdir(parents=True, exist_ok=True)
         self._pages_data = []
         self._doc = fitz.open()
         return self

@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass, field
 from os import PathLike
 from pathlib import Path
-from typing import Literal
 
 from furl import furl
 
@@ -21,7 +20,7 @@ from webtoon_downloader.core.webtoon.downloaders.options import StorageType, Web
 from webtoon_downloader.core.webtoon.downloaders.result import DownloadResult
 from webtoon_downloader.core.webtoon.exporter import DataExporter
 from webtoon_downloader.core.webtoon.extractor import ElementNotFoundError, WebtoonMainPageExtractor
-from webtoon_downloader.core.webtoon.fetchers import WebtoonFetcher
+from webtoon_downloader.core.webtoon.fetchers import END_CHAPTER_LATEST, EndChapter, WebtoonFetcher
 from webtoon_downloader.core.webtoon.models import ChapterInfo
 from webtoon_downloader.core.webtoon.namer import NonSeparateFileNameGenerator, SeparateFileNameGenerator
 from webtoon_downloader.storage import AioFolderWriter, AioPdfWriter, AioWriter, AioZipWriter
@@ -57,7 +56,7 @@ class WebtoonDownloader:
     quality: int
 
     start_chapter: int | None = None
-    end_chapter: int | None | Literal["latest"] = None
+    end_chapter: EndChapter = None
     directory: str | PathLike[str] | None = None
     exporter: DataExporter | None = None
     on_webtoon_fetched: OnWebtoonFetchCallback | None = None
@@ -265,9 +264,9 @@ async def download_webtoon(opts: WebtoonDownloadOptions) -> list[DownloadResult]
         concurrent_downloads_limit=opts.concurrent_chapters,
     )
 
-    end: int | None | Literal["latest"]
+    end: EndChapter
     if opts.latest:
-        start, end = None, "latest"
+        start, end = None, END_CHAPTER_LATEST
     else:
         start, end = opts.start, opts.end
 
